@@ -7,5 +7,6 @@ dist/
 build/
 *.egg-info/
 .env
-.env.*
+.env.local
+.env.*.local
 .DS_Store

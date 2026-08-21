@@ -18,8 +18,17 @@ running the stock OpenTelemetry Collector image. Both are legitimate — this
 one puts more of the protocol-level work in our own code, which fits Iris's
 OTel-native differentiator better than wrapping an existing binary would.
 
+**Frontend (M4):** Vite + React + React Router + shadcn/ui (Radix primitives,
+Tailwind v4), with dashboard views authored in v0 and adapted into the app
+rather than hand-coded from scratch.
+
 ## Status
-M0, M1 done. M2 (collector + storage) in progress — not yet validated against
-a running Postgres in this environment (no local Docker/Postgres available
-during development; code is written against the real driver/schema and
-awaits an end-to-end run).
+M0, M1, M2 done (M2's Postgres storage layer is unvalidated in this
+environment — no local Docker/Postgres available during development; code is
+written against the real driver/schema and awaits an end-to-end run). M3 (eval
+layer) not started. M4 (dashboard) in progress: shadcn/ui scaffolding and
+routing are in place; the four dashboard views (trace explorer, trace detail,
+analytics, regression comparison) are being built from v0-generated
+components one at a time. The regression view is a placeholder until M3
+exists; analytics is a placeholder until the collector exposes an
+aggregate-metrics endpoint.
