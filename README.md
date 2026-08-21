@@ -7,6 +7,7 @@ Full project scope, milestones, and design rationale: [`observability_platform_s
 ## Layout
 - `sdk/` — Python instrumentation SDK (OpenTelemetry-based, emits `gen_ai.*` spans)
 - `collector/` — OTLP receiver / collector config + storage layer
+- `eval/` — YAML-driven eval/regression runner (promptfoo-shaped config + assertions)
 - `frontend/` — React dashboard
 - `docker-compose.yml` — one-command self-hosted stack
 
@@ -32,5 +33,11 @@ The dashboard's four views (trace explorer, trace detail, analytics,
 regression) are built from a v0-generated design — trace explorer (`/`) and
 trace detail (`/traces/:traceId`) are wired to the real collector API;
 analytics (`/analytics`) and regression (`/regression`) still show v0's mock
-data behind a TODO, pending an aggregate-metrics endpoint and an eval/scoring
-layer respectively. The eval/scoring layer itself hasn't been started.
+data behind a TODO, pending an aggregate-metrics endpoint and the eval layer
+being wired into the dashboard, respectively.
+
+The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
+assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that
+grades output against a rubric via Claude. Validated against a fixture
+target (no real LLM call); not yet wired into a real call path (nyu-rag) or
+into the Regression dashboard view.

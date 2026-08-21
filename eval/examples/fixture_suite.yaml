@@ -1,0 +1,16 @@
+target: "fixtures:fake_answer"
+
+tests:
+  - description: "cites the course code it recommends"
+    vars:
+      question: "What's a good course after Algorithms?"
+      courses:
+        - course_code: "CS-GY 6763"
+          title: "Algorithmic Machine Learning"
+    assert:
+      - type: regex
+        value: '\[CS-GY 6763\]'
+      - type: contains
+        value: "Algorithms"
+      - type: latency
+        threshold_ms: 1000
