@@ -9,7 +9,3 @@ build/
 .env
 .env.*
 .DS_Store
-
-# venvs created for local SDK testing
-sdk/.venv/
-*.egg-info/

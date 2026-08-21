@@ -10,8 +10,14 @@ services:
     volumes:
       - iris_pgdata:/var/lib/postgresql/data
 
-  # collector: TBD (M2) — either the real otel/opentelemetry-collector image
-  # with a custom exporter, or a hand-rolled OTLP receiver service here.
+  collector:
+    build: ./collector
+    environment:
+      IRIS_DATABASE_URL: postgresql://iris:iris@postgres:5432/iris
+    ports:
+      - "4318:4318"
+    depends_on:
+      - postgres
 
 volumes:
   iris_pgdata:
