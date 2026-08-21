@@ -13,7 +13,7 @@ npm install
 npm run dev
 ```
 
-Set `VITE_API_BASE_URL` (see `.env.example`) to point at the collector (M2);
+Set `VITE_API_BASE_URL` (see `.env.example`) to point at the collector;
 defaults to `http://localhost:4318`.
 
 ## Adding shadcn/ui components
