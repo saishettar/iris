@@ -4,8 +4,9 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 // TODO: entirely mock data, ported as-is from v0's Evaluations tab. This view
-// depends on the M3 eval layer (prompt/model version tagging + promptfoo-style
-// scores), which doesn't exist yet -- do not wire this to fake endpoints.
+// depends on an eval/scoring layer (prompt/model version tagging +
+// promptfoo-style scores), which doesn't exist yet -- do not wire this to
+// fake endpoints.
 
 function Stat({
   label,
