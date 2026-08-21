@@ -1,0 +1,17 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: iris
+      POSTGRES_PASSWORD: iris
+      POSTGRES_DB: iris
+    ports:
+      - "5432:5432"
+    volumes:
+      - iris_pgdata:/var/lib/postgresql/data
+
+  # collector: TBD (M2) — either the real otel/opentelemetry-collector image
+  # with a custom exporter, or a hand-rolled OTLP receiver service here.
+
+volumes:
+  iris_pgdata:
