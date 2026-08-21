@@ -26,9 +26,9 @@ rather than hand-coded from scratch.
 M0, M1, M2 done (M2's Postgres storage layer is unvalidated in this
 environment — no local Docker/Postgres available during development; code is
 written against the real driver/schema and awaits an end-to-end run). M3 (eval
-layer) not started. M4 (dashboard) in progress: shadcn/ui scaffolding and
-routing are in place; the four dashboard views (trace explorer, trace detail,
-analytics, regression comparison) are being built from v0-generated
-components one at a time. The regression view is a placeholder until M3
-exists; analytics is a placeholder until the collector exposes an
-aggregate-metrics endpoint.
+layer) not started. M4 (dashboard): all four views built from a v0-generated
+design (ported from a single-page tabbed mockup into real routes — trace
+explorer `/`, trace detail `/traces/:traceId`, analytics `/analytics`,
+regression `/regression`). Trace explorer and detail are wired to the real
+collector API; analytics and regression stay on the v0 mock data with a TODO,
+pending an aggregate-metrics endpoint and the M3 eval layer respectively.
