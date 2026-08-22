@@ -4,9 +4,9 @@ import { Activity, Gauge } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMetricsSummary, type MetricsSummary } from "@/lib/api"
 
-// Wired to GET /metrics/summary. No "cost by model" card here -- there's no
-// pricing table backing gen_ai.usage.input_tokens/output_tokens, so cost
-// isn't faked; that's a real gap, not an oversight (see the card below).
+// Wired to GET /metrics/summary. Cost-by-model comes from the collector's
+// pricing.py table, which is empty by default -- a model without a real,
+// verified entry there shows as "not priced" rather than a guessed number.
 
 function Stat({
   label,
@@ -39,6 +39,11 @@ function formatMs(ms: number | null): string {
 
 function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
+
+function formatCost(usd: number | null): string {
+  if (usd === null) return "not priced"
+  return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`
 }
 
 export function Analytics() {
@@ -174,15 +179,33 @@ export function Analytics() {
             <Card className="border-border/70 bg-card/70 shadow-none">
               <CardHeader>
                 <CardTitle className="text-base">Cost by model</CardTitle>
-                <p className="mt-1 text-sm text-muted-foreground">Monthly spend allocation</p>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Not tracked yet -- token counts are captured per span
-                  (<code>gen_ai.usage.*</code>), but there's no model pricing
-                  table to convert them to cost. A real number here needs that
-                  table, not a guess.
+                <p className="mt-1 text-sm text-muted-foreground">
+                  From real token counts; needs pricing.py filled in per model
                 </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {metrics.model_usage.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No chat spans yet.</p>
+                ) : (
+                  metrics.model_usage.map((m) => (
+                    <div
+                      key={m.model}
+                      className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0"
+                    >
+                      <div>
+                        <div className="text-sm font-medium">{m.model}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {m.input_tokens.toLocaleString()} in / {m.output_tokens.toLocaleString()} out
+                        </div>
+                      </div>
+                      <span
+                        className={`font-mono text-sm ${m.cost_usd === null ? "text-muted-foreground" : ""}`}
+                      >
+                        {formatCost(m.cost_usd)}
+                      </span>
+                    </div>
+                  ))
+                )}
               </CardContent>
             </Card>
           </div>
