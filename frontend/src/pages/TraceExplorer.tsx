@@ -4,15 +4,21 @@ import { Link } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { listTraces, type TraceSummary } from "@/lib/api"
+import { getMetricsSummary, listTraces, type TraceSummary } from "@/lib/api"
 
 // Ported from v0's "Trace explorer" card (part of its combined Traces tab).
-// v0's mock rows also had name/model/latency/cost/status columns, but
-// GET /traces (db.py's list_traces) only returns trace_id, first_seen_at,
-// and span_count -- there's no per-trace name/model/cost rollup yet. Rather
-// than fake those columns, they're dropped here; adding them back would need
-// either a collector aggregate query or a per-row span fetch (N+1), which
-// felt like a bigger call than the wiring pass this page needed.
+// v0's mock rows also had name/latency/cost columns, but GET /traces (db.py's
+// list_traces) only returns trace_id/first_seen_at/span_count -- there's no
+// per-trace name/cost rollup yet, so those columns are still dropped rather
+// than faked. Filtering is real though: model/time-range/error-status all
+// hit the collector's actual query params.
+
+const TIME_RANGES = [
+  { label: "All time", hours: null },
+  { label: "Last 24h", hours: 24 },
+  { label: "Last 7d", hours: 24 * 7 },
+  { label: "Last 30d", hours: 24 * 30 },
+] as const
 
 function timeAgo(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime()
@@ -26,16 +32,28 @@ function timeAgo(iso: string): string {
 
 export function TraceExplorer() {
   const [traces, setTraces] = useState<TraceSummary[]>([])
+  const [models, setModels] = useState<string[]>([])
   const [query, setQuery] = useState("")
+  const [model, setModel] = useState("")
+  const [rangeHours, setRangeHours] = useState<number | null>(null)
+  const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    listTraces()
+    getMetricsSummary()
+      .then((m) => setModels(m.model_usage.map((row) => row.model)))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    setLoading(true)
+    const since = rangeHours ? new Date(Date.now() - rangeHours * 3600_000).toISOString() : undefined
+    listTraces(50, { model: model || undefined, since, hasError: errorsOnly ? true : undefined })
       .then(setTraces)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [model, rangeHours, errorsOnly])
 
   const filtered = traces.filter((trace) => trace.trace_id.toLowerCase().includes(query.toLowerCase()))
 
@@ -55,14 +73,51 @@ export function TraceExplorer() {
           <p className="mt-1 text-sm text-muted-foreground">Click a trace to see its span detail.</p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by trace id..."
-              className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
-            />
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="relative max-w-sm flex-1">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by trace id..."
+                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+              />
+            </div>
+
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All models</option>
+              {models.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={rangeHours ?? ""}
+              onChange={(e) => setRangeHours(e.target.value ? Number(e.target.value) : null)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              {TIME_RANGES.map((r) => (
+                <option key={r.label} value={r.hours ?? ""}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+
+            <label className="flex h-9 items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={errorsOnly}
+                onChange={(e) => setErrorsOnly(e.target.checked)}
+                className="size-4 rounded border-input"
+              />
+              Errors only
+            </label>
           </div>
 
           {loading && <p className="text-sm text-muted-foreground">Loading traces...</p>}
@@ -73,7 +128,9 @@ export function TraceExplorer() {
           )}
           {!loading && !error && filtered.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No traces yet -- instrument a call path with iris_otel and check back.
+              {query || model || rangeHours || errorsOnly
+                ? "No traces match these filters."
+                : "No traces yet -- instrument a call path with iris_otel and check back."}
             </p>
           )}
 

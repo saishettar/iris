@@ -80,19 +80,55 @@ def insert_spans(spans: list[dict]) -> None:
             )
 
 
-def list_traces(limit: int = 50) -> list[dict]:
+def list_traces(
+    limit: int = 50,
+    model: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    has_error: bool | None = None,
+) -> list[dict]:
+    conditions = []
+    params: list = []
+
+    if model:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM spans s2 WHERE s2.trace_id = t.trace_id "
+            "AND s2.name = 'chat' AND s2.attributes->>'gen_ai.request.model' = %s)"
+        )
+        params.append(model)
+    if since:
+        conditions.append("t.first_seen_at >= %s")
+        params.append(since)
+    if until:
+        conditions.append("t.first_seen_at <= %s")
+        params.append(until)
+    if has_error is True:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM spans s3 WHERE s3.trace_id = t.trace_id "
+            "AND s3.status_code = 'STATUS_CODE_ERROR')"
+        )
+    elif has_error is False:
+        conditions.append(
+            "NOT EXISTS (SELECT 1 FROM spans s3 WHERE s3.trace_id = t.trace_id "
+            "AND s3.status_code = 'STATUS_CODE_ERROR')"
+        )
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    params.append(limit)
+
     with _connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
-                """
+                f"""
                 SELECT t.trace_id, t.first_seen_at, count(s.span_id) AS span_count
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
+                {where_clause}
                 GROUP BY t.trace_id, t.first_seen_at
                 ORDER BY t.first_seen_at DESC
                 LIMIT %s
                 """,
-                (limit,),
+                params,
             )
             return cur.fetchall()
 

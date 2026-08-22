@@ -78,8 +78,20 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function listTraces(limit = 50): Promise<TraceSummary[]> {
-  return apiFetch<TraceSummary[]>(`/traces?limit=${limit}`)
+export interface TraceFilters {
+  model?: string
+  since?: string
+  until?: string
+  hasError?: boolean
+}
+
+export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<TraceSummary[]> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (filters.model) params.set("model", filters.model)
+  if (filters.since) params.set("since", filters.since)
+  if (filters.until) params.set("until", filters.until)
+  if (filters.hasError !== undefined) params.set("has_error", String(filters.hasError))
+  return apiFetch<TraceSummary[]>(`/traces?${params.toString()}`)
 }
 
 export function getTraceSpans(traceId: string): Promise<Span[]> {
