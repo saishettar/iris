@@ -154,6 +154,37 @@ def list_traces(
             return cur.fetchall()
 
 
+def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
+    """Same row shape as list_traces() (trace_id, first_seen_at, span_count,
+    agent_name, service_name), for a specific set of trace_ids -- used to build
+    the summary broadcast to live-tail subscribers right after a batch of
+    spans lands, instead of re-querying the whole table."""
+    if not trace_ids:
+        return []
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    t.trace_id,
+                    t.first_seen_at,
+                    count(s.span_id) AS span_count,
+                    (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
+                     WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
+                     LIMIT 1) AS agent_name,
+                    (SELECT s4.service_name FROM spans s4
+                     WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
+                     LIMIT 1) AS service_name
+                FROM traces t
+                JOIN spans s ON s.trace_id = t.trace_id
+                WHERE t.trace_id = ANY(%s)
+                GROUP BY t.trace_id, t.first_seen_at
+                """,
+                (trace_ids,),
+            )
+            return cur.fetchall()
+
+
 def get_trace_spans(trace_id: str) -> list[dict]:
     with _connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
