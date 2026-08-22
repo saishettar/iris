@@ -71,8 +71,8 @@
     --secondary-foreground: #0b090a;
     --muted: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
     --muted-foreground: color-mix(in oklch, #0b090a, #b1a7a6 55%);
-    --accent: color-mix(in oklch, #ffffff, #a4161a 8%);
-    --accent-foreground: #660708;
+    --accent: oklch(0.91 0 0);
+    --accent-foreground: oklch(0.2 0 0);
     --destructive: #e5383b;
     --success: oklch(0.5 0.14 155);
     --success-foreground: oklch(0.5 0.14 155);
@@ -89,8 +89,8 @@
     --sidebar-foreground: #0b090a;
     --sidebar-primary: #a4161a;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: color-mix(in oklch, #ffffff, #a4161a 8%);
-    --sidebar-accent-foreground: #660708;
+    --sidebar-accent: oklch(0.91 0 0);
+    --sidebar-accent-foreground: oklch(0.2 0 0);
     --sidebar-border: #d3d3d3;
     --sidebar-ring: #a4161a;
 }
