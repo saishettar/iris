@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react"
-import { ChevronLeft, GitBranch, GanttChartSquare } from "lucide-react"
+import { ChevronLeft, GitBranch, GanttChartSquare, Plus, X } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getTraceSpans, type Span } from "@/lib/api"
+import { addTraceTag, getTraceSpans, getTraceTags, removeTraceTag, type Span } from "@/lib/api"
 import { TraceGraph } from "@/pages/TraceGraph"
 
 // Two views over the same spans, toggled below: a real proportional-width
@@ -52,12 +52,74 @@ function depthOf(span: Span, byId: Map<string, Span>): number {
 
 const RULER_TICKS = [0, 25, 50, 75, 100]
 
+function TagEditor({
+  tags,
+  onAdd,
+  onRemove,
+}: {
+  tags: string[]
+  onAdd: (tag: string) => void
+  onRemove: (tag: string) => void
+}) {
+  const [adding, setAdding] = useState(false)
+  const [value, setValue] = useState("")
+
+  function submit() {
+    const trimmed = value.trim()
+    if (trimmed) onAdd(trimmed)
+    setValue("")
+    setAdding(false)
+  }
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      {tags.map((t) => (
+        <Badge key={t} variant="outline" className="gap-1 pr-1 text-[10px]">
+          {t}
+          <button
+            onClick={() => onRemove(t)}
+            aria-label={`Remove tag ${t}`}
+            className="rounded-full p-0.5 hover:bg-muted-foreground/20"
+          >
+            <X className="size-2.5" />
+          </button>
+        </Badge>
+      ))}
+      {adding ? (
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit()
+            if (e.key === "Escape") {
+              setAdding(false)
+              setValue("")
+            }
+          }}
+          onBlur={submit}
+          placeholder="tag name"
+          className="h-5 w-24 rounded-full border border-input bg-background px-2 text-[10px] outline-none focus:ring-1 focus:ring-ring"
+        />
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          className="flex items-center gap-0.5 rounded-full border border-dashed border-border px-2 py-0.5 text-[10px] text-muted-foreground hover:border-primary hover:text-primary"
+        >
+          <Plus className="size-2.5" /> tag
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function TraceDetail() {
   const { traceId } = useParams<{ traceId: string }>()
   const [spans, setSpans] = useState<Span[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<"waterfall" | "graph">("waterfall")
+  const [tags, setTags] = useState<string[]>([])
 
   useEffect(() => {
     if (!traceId) return
@@ -65,6 +127,9 @@ export function TraceDetail() {
       .then(setSpans)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
+    getTraceTags(traceId)
+      .then((r) => setTags(r.tags))
+      .catch(() => {})
   }, [traceId])
 
   const root = spans.find((s) => s.parent_span_id === null) ?? spans[0]
@@ -109,6 +174,13 @@ export function TraceDetail() {
           <div>
             <CardTitle className="text-base">{agent ?? root?.name ?? "Trace detail"}</CardTitle>
             <p className="mt-1 font-mono text-xs text-muted-foreground">{traceId}</p>
+            {traceId && (
+              <TagEditor
+                tags={tags}
+                onAdd={(t) => addTraceTag(traceId, t).then((r) => setTags(r.tags))}
+                onRemove={(t) => removeTraceTag(traceId, t).then((r) => setTags(r.tags))}
+              />
+            )}
           </div>
           <div className="flex items-center gap-3 text-right text-xs text-muted-foreground">
             <div>
