@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - iris_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iris -d iris"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
 
   collector:
     build: ./collector
@@ -17,7 +22,15 @@ services:
     ports:
       - "4318:4318"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - collector
 
 volumes:
   iris_pgdata:
