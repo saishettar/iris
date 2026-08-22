@@ -8,6 +8,7 @@ export interface TraceSummary {
   agent_name: string | null
   service_name: string | null
   tags: string[]
+  session_id: string | null
 }
 
 export interface Span {
@@ -110,6 +111,7 @@ export interface TraceFilters {
   until?: string
   hasError?: boolean
   tag?: string
+  session?: string
 }
 
 export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<TraceSummary[]> {
@@ -120,7 +122,21 @@ export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<Trac
   if (filters.until) params.set("until", filters.until)
   if (filters.hasError !== undefined) params.set("has_error", String(filters.hasError))
   if (filters.tag) params.set("tag", filters.tag)
+  if (filters.session) params.set("session", filters.session)
   return apiFetch<TraceSummary[]>(`/traces?${params.toString()}`)
+}
+
+export interface SessionSummary {
+  session_id: string
+  trace_count: number
+  first_seen_at: string
+  last_seen_at: string
+  has_error: boolean
+  agent_name: string
+}
+
+export function getSessionSummary(): Promise<SessionSummary[]> {
+  return apiFetch<SessionSummary[]>("/sessions")
 }
 
 export function getTraceSpans(traceId: string): Promise<Span[]> {

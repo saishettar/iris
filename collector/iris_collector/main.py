@@ -103,6 +103,7 @@ def list_traces(
     until: str | None = None,
     has_error: bool | None = None,
     tag: str | None = None,
+    session: str | None = None,
 ):
     return db.list_traces(
         limit=limit,
@@ -112,6 +113,7 @@ def list_traces(
         until=until,
         has_error=has_error,
         tag=tag,
+        session=session,
     )
 
 
@@ -133,6 +135,11 @@ def remove_trace_tag(trace_id: str, tag: str):
 @app.get("/tags")
 def list_tags():
     return db.list_tags()
+
+
+@app.get("/sessions")
+def get_session_summary():
+    return db.get_session_summary()
 
 
 @app.get("/traces/stream")
