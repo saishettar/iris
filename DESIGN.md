@@ -114,6 +114,28 @@ executed as specified, not overridden -- but it's the one place this palette ask
 the viewer than the previous two did, and is worth deciding deliberately rather than
 inheriting by default.
 
+### Follow-up: neutral dark backgrounds, and a toned-down promo tile
+
+Two corrections after review:
+
+- Dark mode's `--background`/`--card`/`--popover`/`--secondary`/`--muted`/`--accent`/
+  `--sidebar*` moved from the literal Black/Carbon Black hex to true zero-chroma neutral
+  gray (`oklch(L 0 0)`). Black `#0b090a` and Carbon Black `#161a1d` each carry a faint,
+  *different* tint (warm and cool respectively) once you look closely -- inconsistent with
+  each other and with `:root`'s genuinely neutral White Smoke/White. Mahogany Red
+  (primary), Strawberry Red (destructive), and Silver (chart-5) still do real work; every
+  background/surface token is now plain neutral.
+- The Overview promo tile's gradient was a full-strength Mahogany-to-Black block with a
+  matching glow shadow -- too bold sitting among otherwise-quiet neutral cards, more so
+  now that the backgrounds themselves went neutral. Rebuilt with `color-mix(in oklch,
+  var(--color-primary), var(--color-card) 82%)` fading to the plain card color: a
+  theme-relative, barely-there tint instead of a hand-picked-per-theme literal block, so it
+  self-corrects if the palette changes again rather than needing two more manual edits. The
+  icon badge and body text dropped to the same `bg-primary/15 text-primary` /
+  `text-foreground` treatment every other agent card already uses; only the "Get started"
+  button keeps a solid `bg-primary` fill, so exactly one element on the tile carries full
+  accent strength instead of the whole card.
+
 ## Type
 
 - **UI text**: Geist Sans (`Geist Variable`, unchanged) — a real workhorse face, kept as-is.
