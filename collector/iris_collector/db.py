@@ -103,3 +103,63 @@ def get_trace_spans(trace_id: str) -> list[dict]:
                 (trace_id,),
             )
             return cur.fetchall()
+
+
+def insert_eval_run(suite_target: str, version_tag: str | None, results: list[dict]) -> str:
+    """Store one iris-eval run (the JSON shape `iris-eval --out` writes). Returns the new run_id."""
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO eval_runs (suite_target, version_tag) VALUES (%s, %s) RETURNING run_id",
+                (suite_target, version_tag),
+            )
+            run_id = cur.fetchone()[0]
+
+            if results:
+                psycopg2.extras.execute_values(
+                    cur,
+                    """
+                    INSERT INTO eval_results (run_id, description, passed, latency_ms, assertion_results)
+                    VALUES %s
+                    """,
+                    [
+                        (
+                            run_id,
+                            r["description"],
+                            r["passed"],
+                            r["latency_ms"],
+                            psycopg2.extras.Json(r["assertion_results"]),
+                        )
+                        for r in results
+                    ],
+                )
+            return str(run_id)
+
+
+def list_eval_runs(limit: int = 50) -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT r.run_id, r.suite_target, r.version_tag, r.created_at,
+                       count(res.result_id) AS test_count,
+                       count(res.result_id) FILTER (WHERE res.passed) AS passed_count
+                FROM eval_runs r
+                LEFT JOIN eval_results res ON res.run_id = r.run_id
+                GROUP BY r.run_id
+                ORDER BY r.created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            return cur.fetchall()
+
+
+def get_eval_run(run_id: str) -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM eval_results WHERE run_id = %s ORDER BY description",
+                (run_id,),
+            )
+            return cur.fetchall()

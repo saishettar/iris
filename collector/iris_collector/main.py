@@ -12,6 +12,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
 )
+from pydantic import BaseModel
 
 from . import db
 from .otlp import extract_spans
@@ -48,3 +49,45 @@ def list_traces(limit: int = 50):
 @app.get("/traces/{trace_id}")
 def get_trace(trace_id: str):
     return db.get_trace_spans(trace_id)
+
+
+class AssertionResultIn(BaseModel):
+    assertion_type: str
+    passed: bool
+    detail: str
+
+
+class EvalCaseResultIn(BaseModel):
+    description: str
+    passed: bool
+    output: str
+    latency_ms: float
+    assertion_results: list[AssertionResultIn]
+
+
+class EvalRunIn(BaseModel):
+    """Matches the JSON shape `iris-eval --out` writes."""
+
+    suite_target: str
+    version_tag: str | None = None
+    results: list[EvalCaseResultIn]
+
+
+@app.post("/eval-runs")
+def ingest_eval_run(run: EvalRunIn):
+    run_id = db.insert_eval_run(
+        run.suite_target,
+        run.version_tag,
+        [r.model_dump() for r in run.results],
+    )
+    return {"run_id": run_id}
+
+
+@app.get("/eval-runs")
+def list_eval_runs(limit: int = 50):
+    return db.list_eval_runs(limit=limit)
+
+
+@app.get("/eval-runs/{run_id}")
+def get_eval_run(run_id: str):
+    return db.get_eval_run(run_id)

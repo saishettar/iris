@@ -16,3 +16,21 @@ CREATE TABLE IF NOT EXISTS spans (
 );
 
 CREATE INDEX IF NOT EXISTS spans_trace_id_idx ON spans (trace_id);
+
+CREATE TABLE IF NOT EXISTS eval_runs (
+    run_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    suite_target TEXT NOT NULL,
+    version_tag TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS eval_results (
+    result_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    run_id UUID NOT NULL REFERENCES eval_runs (run_id),
+    description TEXT NOT NULL,
+    passed BOOLEAN NOT NULL,
+    latency_ms DOUBLE PRECISION NOT NULL,
+    assertion_results JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS eval_results_run_id_idx ON eval_results (run_id);
