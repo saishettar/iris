@@ -7,6 +7,8 @@ export interface TraceSummary {
   span_count: number
   agent_name: string | null
   service_name: string | null
+  tags: string[]
+  session_id: string | null
 }
 
 export interface Span {
@@ -86,12 +88,30 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function apiMutate<T>(
+  path: string,
+  method: "POST" | "DELETE",
+  body?: unknown
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<T>
+}
+
 export interface TraceFilters {
   model?: string
   agent?: string
   since?: string
   until?: string
   hasError?: boolean
+  tag?: string
+  session?: string
 }
 
 export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<TraceSummary[]> {
@@ -101,11 +121,90 @@ export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<Trac
   if (filters.since) params.set("since", filters.since)
   if (filters.until) params.set("until", filters.until)
   if (filters.hasError !== undefined) params.set("has_error", String(filters.hasError))
+  if (filters.tag) params.set("tag", filters.tag)
+  if (filters.session) params.set("session", filters.session)
   return apiFetch<TraceSummary[]>(`/traces?${params.toString()}`)
+}
+
+export interface SessionSummary {
+  session_id: string
+  trace_count: number
+  first_seen_at: string
+  last_seen_at: string
+  has_error: boolean
+  agent_name: string
+}
+
+export function getSessionSummary(): Promise<SessionSummary[]> {
+  return apiFetch<SessionSummary[]>("/sessions")
 }
 
 export function getTraceSpans(traceId: string): Promise<Span[]> {
   return apiFetch<Span[]>(`/traces/${encodeURIComponent(traceId)}`)
+}
+
+export interface TagCount {
+  tag: string
+  trace_count: number
+}
+
+export function listTags(): Promise<TagCount[]> {
+  return apiFetch<TagCount[]>("/tags")
+}
+
+export function getTraceTags(traceId: string): Promise<{ tags: string[] }> {
+  return apiFetch(`/traces/${encodeURIComponent(traceId)}/tags`)
+}
+
+export function addTraceTag(traceId: string, tag: string): Promise<{ tags: string[] }> {
+  return apiMutate(`/traces/${encodeURIComponent(traceId)}/tags`, "POST", { tag })
+}
+
+export function removeTraceTag(traceId: string, tag: string): Promise<{ tags: string[] }> {
+  return apiMutate(
+    `/traces/${encodeURIComponent(traceId)}/tags/${encodeURIComponent(tag)}`,
+    "DELETE"
+  )
+}
+
+export interface Annotation {
+  id: string
+  trace_id: string
+  verdict: "good" | "bad"
+  note: string | null
+  created_at: string
+}
+
+export function listAnnotations(traceId: string): Promise<Annotation[]> {
+  return apiFetch<Annotation[]>(`/traces/${encodeURIComponent(traceId)}/annotations`)
+}
+
+export async function addAnnotation(
+  traceId: string,
+  verdict: "good" | "bad",
+  note?: string
+): Promise<Annotation> {
+  const res = await fetch(`${API_BASE_URL}/traces/${encodeURIComponent(traceId)}/annotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verdict, note: note || undefined }),
+  })
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<Annotation>
+}
+
+// Plain text, not JSON -- a paste-ready YAML snippet, not a structured
+// resource. Throws the collector's real "content wasn't captured" message
+// on 404 rather than a generic HTTP error, so the UI can show it as-is.
+export async function getEvalCaseSnippet(traceId: string): Promise<string> {
+  const res = await fetch(`${API_BASE_URL}/traces/${encodeURIComponent(traceId)}/eval-case`)
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.detail ?? `API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.text()
 }
 
 // Live tail: one real SSE event per trace the moment its spans are queryable
