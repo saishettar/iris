@@ -12,6 +12,7 @@ class Assertion:
     type: str
     value: str | None = None
     threshold_ms: float | None = None
+    threshold_usd: float | None = None
     rubric: str | None = None
 
 

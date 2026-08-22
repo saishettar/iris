@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import dataclasses
 import json
 import os
 import sys
 
 from .config import load_suite
+from .diff import diff_results
 from .runner import run_suite
 
 
@@ -26,7 +28,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-judge",
         action="store_true",
-        help="skip llm-rubric assertions (fails if a test case needs one) -- no API key or spend needed",
+        help="skip llm-rubric/answer-relevance assertions (fails if a test case needs one) -- no API key or spend needed",
     )
     parser.add_argument(
         "--out",
@@ -36,6 +38,10 @@ def main(argv: list[str] | None = None) -> int:
         "--version-tag",
         default=None,
         help="a label for this run (prompt/model version, git sha, ...), recorded in --out's JSON",
+    )
+    parser.add_argument(
+        "--baseline",
+        help="path to a previous --out JSON file; prints a per-test diff against it (new/removed/regressed/fixed)",
     )
     args = parser.parse_args(argv)
 
@@ -47,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
 
         judge_client = anthropic.Anthropic()
 
-    results = run_suite(suite, judge_client=judge_client)
+    results = asyncio.run(run_suite(suite, judge_client=judge_client))
 
     failed = 0
     for result in results:
@@ -60,6 +66,20 @@ def main(argv: list[str] | None = None) -> int:
             failed += 1
 
     print(f"\n{len(results) - failed}/{len(results)} passed")
+
+    if args.baseline:
+        with open(args.baseline) as f:
+            baseline_payload = json.load(f)
+        rows = diff_results(baseline_payload["results"], results)
+        regressions = [r for r in rows if r.change == "regressed"]
+        print(f"\nDiff against baseline ({args.baseline}):")
+        for row in rows:
+            if row.change != "unchanged":
+                print(f"    [{row.change.upper()}] {row.description}")
+        if regressions:
+            print(f"\n{len(regressions)} regression(s) vs baseline")
+        else:
+            print("\nNo regressions vs baseline")
 
     if args.out:
         payload = {
