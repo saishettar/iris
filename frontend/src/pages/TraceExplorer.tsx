@@ -86,23 +86,23 @@ export function TraceExplorer() {
         </p>
       </div>
 
-      <Card className="border-border/70 bg-card/70 shadow-none">
+      <Card className="bg-card/80">
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-end gap-3">
             <div className="relative max-w-sm flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search by trace id..."
-                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+                className="h-9 w-full rounded-full border border-input bg-muted/40 pl-10 pr-4 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
               />
             </div>
 
             <select
               value={agent}
               onChange={(e) => setAgent(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All agents</option>
               {agents.map((a) => (
@@ -115,7 +115,7 @@ export function TraceExplorer() {
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All models</option>
               {models.map((m) => (
@@ -128,7 +128,7 @@ export function TraceExplorer() {
             <select
               value={rangeHours ?? ""}
               onChange={(e) => setRangeHours(e.target.value ? Number(e.target.value) : null)}
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
               {TIME_RANGES.map((r) => (
                 <option key={r.label} value={r.hours ?? ""}>
@@ -137,7 +137,7 @@ export function TraceExplorer() {
               ))}
             </select>
 
-            <label className="flex h-9 items-center gap-2 text-sm text-muted-foreground">
+            <label className="flex h-9 items-center gap-2 rounded-full border border-transparent px-3 text-sm text-muted-foreground">
               <input
                 type="checkbox"
                 checked={errorsOnly}
@@ -162,7 +162,7 @@ export function TraceExplorer() {
             </p>
           )}
 
-          <div className="overflow-hidden rounded-md border border-border">
+          <div className="overflow-hidden rounded-xl border border-border">
             {filtered.map((trace, i) => (
               <Link
                 key={trace.trace_id}

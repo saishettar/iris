@@ -11,6 +11,34 @@ light available via a working toggle (`useTheme` in `Layout.tsx`, persisted to
 `localStorage["iris-theme"]`, applied pre-paint by an inline script in `index.html` to avoid
 a flash of the wrong theme).
 
+## Material update: richer cards, pinned to a reference
+
+A user-supplied screenshot (a crypto staking dashboard, "Stakent") pinned a richer material
+language than the initial flat/bordered Langfuse-style pass: larger corner radii, real soft
+card elevation, colorful per-item icon badges, inline sparklines on stat cards, and one
+gradient "promo" card as a deliberate accent. Per the brief-wins principle, this pinned
+reference's concrete visual grammar was adopted -- translated onto Iris's real data and IA,
+never copied literally (no staking/wallet content, obviously).
+
+- `--radius` raised from `0.5rem` to `0.85rem` (`index.css`) -- cascades to every
+  `rounded-*` utility that reads the theme's radius tokens, including buttons and inputs.
+- `Card` (`components/ui/card.tsx`) now ships `rounded-2xl` and a real `shadow-lg
+  shadow-black/20` by default, replacing the previous flat `ring-1` only. Every page's
+  `border-border/70 bg-card/70 shadow-none` override (20 occurrences) was removed in favor
+  of the component's own default, plus `bg-card/80` where a touch of translucency reads well.
+  This is a real shift from the initial Langfuse pass's deliberately flat cards -- the pinned
+  reference asked for depth, so depth is what shipped; still Restrained-but-committed on
+  color, not Full-palette or Drenched.
+- Filter controls (`TraceExplorer`, `Regression`) became pill-shaped (`rounded-full`,
+  `bg-muted/40`) rather than square selects, matching the reference's chip-style filters.
+- Overview's agent cards cycle through four badge tones (`AGENT_TONES` -- primary plus
+  `--chart-2/3/4`) instead of one repeated color, and its "Traces" / "P50 latency" stat cards
+  carry a real inline `Sparkline` built from the same `trace_volume` / `latency_by_day` series
+  Analytics already fetches -- not decorative, and it renders nothing (not a flat line) when
+  fewer than two data points exist, which is the actual state of this project's own demo data
+  today. A gradient promo tile ("Connect another agent") closes the agent grid, translating
+  the reference's gradient CTA panel into a real onboarding nudge rather than decoration.
+
 ## Palette
 
 Restrained-but-committed: near-zero-chroma neutrals (hue 276, matching the accent) plus one
