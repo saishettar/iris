@@ -56,12 +56,13 @@ export function TraceExplorer() {
   const [model, setModel] = useState("")
   const [agent, setAgent] = useState(() => searchParams.get("agent") ?? "")
   const [tag, setTag] = useState("")
+  const [session] = useState(() => searchParams.get("session") ?? "")
   const [rangeHours, setRangeHours] = useState<number | null>(null)
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [liveArrivedIds, setLiveArrivedIds] = useState<Set<string>>(new Set())
-  const serverFiltersActive = Boolean(model || agent || tag || rangeHours || errorsOnly)
+  const serverFiltersActive = Boolean(model || agent || tag || session || rangeHours || errorsOnly)
 
   useEffect(() => {
     getMetricsSummary()
@@ -89,13 +90,14 @@ export function TraceExplorer() {
       model: model || undefined,
       agent: agent || undefined,
       tag: tag || undefined,
+      session: session || undefined,
       since,
       hasError: errorsOnly ? true : undefined,
     })
       .then(setTraces)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [model, agent, tag, rangeHours, errorsOnly])
+  }, [model, agent, tag, session, rangeHours, errorsOnly])
 
   useEffect(() => {
     if (serverFiltersActive) return
@@ -121,7 +123,16 @@ export function TraceExplorer() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Traces</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Inspect requests ingested by the collector.
+            {session ? (
+              <>
+                Filtered to session <span className="font-mono text-foreground">{session}</span> --{" "}
+                <Link to="/sessions" className="text-primary hover:underline">
+                  all sessions
+                </Link>
+              </>
+            ) : (
+              "Inspect requests ingested by the collector."
+            )}
           </p>
         </div>
         {serverFiltersActive ? (
