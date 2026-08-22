@@ -218,7 +218,7 @@ export function Overview() {
             })}
 
             <Link to="/connect" className="group">
-              <Card className="h-full overflow-hidden bg-gradient-to-br from-[oklch(0.55_0.2_275)] to-[oklch(0.32_0.16_300)] shadow-lg shadow-[oklch(0.32_0.16_300)]/30 ring-1 ring-white/10">
+              <Card className="h-full overflow-hidden bg-gradient-to-br from-[oklch(0.68_0.15_80)] to-[oklch(0.32_0.1_45)] shadow-lg shadow-[oklch(0.32_0.1_45)]/30 ring-1 ring-white/10">
                 <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
                   <div>
                     <span className="flex size-8 items-center justify-center rounded-full bg-white/15 text-white">
@@ -229,7 +229,7 @@ export function Overview() {
                       Three steps, real data flowing here within a minute.
                     </p>
                   </div>
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/95 px-4 py-2 text-xs font-medium text-[oklch(0.32_0.16_300)] transition-colors group-hover:bg-white">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/95 px-4 py-2 text-xs font-medium text-[oklch(0.32_0.1_45)] transition-colors group-hover:bg-white">
                     Get started
                   </span>
                 </CardContent>
