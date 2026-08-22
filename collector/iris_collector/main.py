@@ -57,8 +57,14 @@ async def ingest_traces(request: Request) -> Response:
 
 
 @app.get("/traces")
-def list_traces(limit: int = 50):
-    return db.list_traces(limit=limit)
+def list_traces(
+    limit: int = 50,
+    model: str | None = None,
+    since: str | None = None,
+    until: str | None = None,
+    has_error: bool | None = None,
+):
+    return db.list_traces(limit=limit, model=model, since=since, until=until, has_error=has_error)
 
 
 @app.get("/traces/{trace_id}")
