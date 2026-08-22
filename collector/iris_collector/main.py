@@ -102,10 +102,22 @@ def list_traces(
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
+    session: str | None = None,
 ):
     return db.list_traces(
-        limit=limit, model=model, agent=agent, since=since, until=until, has_error=has_error
+        limit=limit,
+        model=model,
+        agent=agent,
+        since=since,
+        until=until,
+        has_error=has_error,
+        session=session,
     )
+
+
+@app.get("/sessions")
+def get_session_summary():
+    return db.get_session_summary()
 
 
 @app.get("/traces/stream")
