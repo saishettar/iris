@@ -4,7 +4,7 @@ import { Link, useSearchParams } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { getMetricsSummary, listTraces, type TraceSummary } from "@/lib/api"
+import { getMetricsSummary, listTraces, subscribeToTraceStream, type TraceSummary } from "@/lib/api"
 
 // Ported from v0's "Trace explorer" card (part of its combined Traces tab).
 // v0's mock rows also had a latency/cost column, but GET /traces has no
@@ -14,6 +14,14 @@ import { getMetricsSummary, listTraces, type TraceSummary } from "@/lib/api"
 // primary label per row -- a bare trace_id told you nothing about which
 // agent produced it. Filtering (agent/model/time-range/error-status) all
 // hits the collector's actual query params.
+//
+// Live tail (GET /traces/stream, an SSE feed -- see live.py) prepends real
+// arrivals in place of a poll loop, but only while the server-side filters
+// are at their defaults: a trace pushed mid-stream can't be checked against
+// an active model filter (TraceSummary doesn't carry model), so rather than
+// silently show traces that might not match, live tail just pauses and says
+// so. The free-text trace-id search stays client-side only and doesn't
+// gate it.
 
 const TIME_RANGES = [
   { label: "All time", hours: null },
@@ -44,6 +52,8 @@ export function TraceExplorer() {
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [liveArrivedIds, setLiveArrivedIds] = useState<Set<string>>(new Set())
+  const serverFiltersActive = Boolean(model || agent || rangeHours || errorsOnly)
 
   useEffect(() => {
     getMetricsSummary()
@@ -75,15 +85,44 @@ export function TraceExplorer() {
       .finally(() => setLoading(false))
   }, [model, agent, rangeHours, errorsOnly])
 
+  useEffect(() => {
+    if (serverFiltersActive) return
+    return subscribeToTraceStream((incoming) => {
+      setTraces((current) => {
+        const existingIndex = current.findIndex((t) => t.trace_id === incoming.trace_id)
+        if (existingIndex !== -1) {
+          const next = current.slice()
+          next[existingIndex] = incoming
+          return next
+        }
+        return [incoming, ...current].slice(0, 100)
+      })
+      setLiveArrivedIds((current) => new Set(current).add(incoming.trace_id))
+    })
+  }, [serverFiltersActive])
+
   const filtered = traces.filter((trace) => trace.trace_id.toLowerCase().includes(query.toLowerCase()))
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Traces</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Inspect requests ingested by the collector.
-        </p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Traces</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Inspect requests ingested by the collector.
+          </p>
+        </div>
+        {serverFiltersActive ? (
+          <span className="text-xs text-muted-foreground">Live tail paused while filtering</span>
+        ) : (
+          <span className="flex items-center gap-1.5 text-xs font-medium text-success">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-success" />
+            </span>
+            Live
+          </span>
+        )}
       </div>
 
       <Card className="bg-card/80">
@@ -169,7 +208,7 @@ export function TraceExplorer() {
                 to={`/traces/${trace.trace_id}`}
                 className={`flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent/60 ${
                   i !== filtered.length - 1 ? "border-b border-border/60" : ""
-                }`}
+                } ${liveArrivedIds.has(trace.trace_id) ? "animate-in fade-in slide-in-from-top-2 duration-500" : ""}`}
               >
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">
