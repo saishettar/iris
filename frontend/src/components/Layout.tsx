@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import {
   BarChart3,
+  Bell,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
@@ -29,6 +30,7 @@ const NAV_LINKS = [
   { to: "/sessions", label: "Sessions", icon: MessagesSquare },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/regression", label: "Regression", icon: GitCompare },
+  { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/connect", label: "Connect", icon: Plug },
 ]
 
@@ -82,6 +84,7 @@ function activeLabel(pathname: string): string {
   if (pathname === "/sessions") return "Sessions"
   if (pathname === "/analytics") return "Analytics"
   if (pathname === "/regression") return "Regression"
+  if (pathname === "/alerts") return "Alerts"
   if (pathname === "/connect") return "Connect"
   return "Iris"
 }

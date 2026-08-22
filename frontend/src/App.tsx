@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom"
 
 import { Layout } from "@/components/Layout"
+import { Alerts } from "@/pages/Alerts"
 import { Analytics } from "@/pages/Analytics"
 import { Connect } from "@/pages/Connect"
 import { Overview } from "@/pages/Overview"
@@ -19,6 +20,7 @@ function App() {
         <Route path="/sessions" element={<Sessions />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/regression" element={<Regression />} />
+        <Route path="/alerts" element={<Alerts />} />
         <Route path="/connect" element={<Connect />} />
       </Route>
     </Routes>

@@ -264,3 +264,65 @@ export interface OtelMetricsSummary {
 export function getOtelMetricsSummary(hours = 24): Promise<OtelMetricsSummary> {
   return apiFetch<OtelMetricsSummary>(`/metrics/otel-summary?hours=${hours}`)
 }
+
+export type AlertMetric = "error_rate" | "latency_p95" | "cost"
+
+export interface AlertRule {
+  id: string
+  name: string
+  metric: AlertMetric
+  threshold: number
+  window_minutes: number
+  webhook_url: string | null
+  enabled: boolean
+  created_at: string
+}
+
+export interface AlertEvent {
+  id: string
+  rule_id: string
+  rule_name: string
+  metric: AlertMetric
+  fired_at: string
+  observed_value: number
+  message: string
+}
+
+async function apiJson<T>(path: string, method: "POST" | "PATCH" | "DELETE", body?: unknown): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => null)
+    throw new Error(errBody?.detail ?? `API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<T>
+}
+
+export function listAlertRules(): Promise<AlertRule[]> {
+  return apiFetch<AlertRule[]>("/alert-rules")
+}
+
+export function createAlertRule(rule: {
+  name: string
+  metric: AlertMetric
+  threshold: number
+  window_minutes: number
+  webhook_url?: string
+}): Promise<AlertRule> {
+  return apiJson<AlertRule>("/alert-rules", "POST", rule)
+}
+
+export function setAlertRuleEnabled(ruleId: string, enabled: boolean): Promise<AlertRule> {
+  return apiJson<AlertRule>(`/alert-rules/${encodeURIComponent(ruleId)}`, "PATCH", { enabled })
+}
+
+export function deleteAlertRule(ruleId: string): Promise<{ deleted: string }> {
+  return apiJson<{ deleted: string }>(`/alert-rules/${encodeURIComponent(ruleId)}`, "DELETE")
+}
+
+export function listAlertEvents(limit = 50): Promise<AlertEvent[]> {
+  return apiFetch<AlertEvent[]>(`/alert-events?limit=${limit}`)
+}
