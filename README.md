@@ -38,6 +38,8 @@ being wired into the dashboard, respectively.
 
 The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
 assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that
-grades output against a rubric via Claude. Validated against a fixture
-target (no real LLM call); not yet wired into a real call path (nyu-rag) or
-into the Regression dashboard view.
+grades output against a rubric via Claude. Validated both against a fixture
+target (no real LLM call) and against nyu-rag's real `generate_answer` path,
+live: one run caught a real brittle-regex failure (the model's phrasing
+varied between calls) that got replaced with an `llm-rubric` assertion
+instead. Not yet wired into the Regression dashboard view.
