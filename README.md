@@ -24,34 +24,46 @@ Tailwind v4), with dashboard views authored in v0 and adapted into the app
 rather than hand-coded from scratch.
 
 ## Status
-Everything below has now been run against a real `docker compose up` stack
-(Postgres + the collector), not just mocked in isolation: real OTLP spans
-from the SDK, a real eval run, and the real `/metrics/summary` aggregates,
-all stored and read back correctly, with the dashboard showing genuine data
-for all four views in a browser. That live pass also caught a real bug the
-mocked tests couldn't: the collector had no CORS headers, so a browser could
-fetch it fine over curl/TestClient but got silently blocked calling it from
-the dashboard's own origin -- fixed via `CORSMiddleware`
-(`IRIS_CORS_ORIGINS`, defaults to the Vite dev origin).
 
-The instrumentation SDK, OTLP collector, and Postgres schema (traces/spans,
-eval_runs/eval_results) are built and now verified end-to-end.
+**Core system:** SDK, collector (OTLP ingest + Postgres storage for
+traces/spans and eval_runs/eval_results), and the eval/scoring layer are all
+built and have been run against a real `docker compose up` stack (Postgres +
+collector), not just mocked in isolation -- real OTLP spans, a real eval
+run, and the `/metrics/summary` aggregates all stored and read back
+correctly, with the dashboard showing genuine data in a browser. That live
+pass caught a real bug no mocked test could: the collector had no CORS
+headers, so curl/TestClient saw a fine response while a browser on the
+dashboard's own origin got silently blocked -- fixed via `CORSMiddleware`.
 
-The dashboard's four views (trace explorer, trace detail, analytics,
-regression) are built from a v0-generated design and all four fetch from the
-real collector API — trace explorer (`/`), trace detail
-(`/traces/:traceId`), regression (`/regression`), and analytics
-(`/analytics`), the last backed by `GET /metrics/summary` (trace volume,
-model usage, and real latency percentiles derived from span data; no
-cost-by-model numbers, since there's no pricing table behind the captured
-token counts to convert them honestly).
+**Dashboard:** all four views (trace explorer `/`, trace detail
+`/traces/:traceId`, analytics `/analytics`, regression `/regression`) are
+built from a v0-generated design and fetch from the real collector API.
+Analytics includes cost-by-model, computed from real captured token counts
+against a pricing table that's empty by default (no fabricated numbers --
+fill in real pricing per model to enable it). Regression supports a real
+baseline-vs-candidate diff (by test description, so added/removed cases
+show up correctly) once two comparable runs exist, falling back to a
+single-run view otherwise.
 
-The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
-assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that
-grades output against a rubric via Claude. Validated against a fixture
-target, against nyu-rag's real `generate_answer` path live (one run caught a
-real brittle-regex failure -- the model's phrasing varied between calls --
-that got replaced with an `llm-rubric` assertion instead), and now stored
-for real via `POST /eval-runs`. Only one run has been posted so far, so
-there's no real production-vs-candidate diff yet; that's the natural next
-step once multiple version-tagged runs exist to compare.
+**Eval layer:** YAML suites, deterministic assertions
+(`contains`/`regex`/`latency`), and an `llm-rubric` assertion that grades
+output against a rubric via Claude, stored for real via `POST /eval-runs`.
+Validated against a fixture target and against nyu-rag's real
+`generate_answer` path live -- one run caught a real brittle-regex failure
+(the model's phrasing varied between calls) that got replaced with an
+`llm-rubric` assertion instead. A CI workflow (in nyu-rag) runs this suite
+on PRs touching the prompt and posts results as a comment, failing the
+check on regression.
+
+**Dogfooding:** both intended target apps are instrumented with the SDK --
+nyu-rag (`generate_answer`, single call) and undercut/f1-race-strategy-agent
+(`decide_llm`, a multi-round Claude tool-use loop). Instrumenting the second
+one surfaced two real SDK gaps that got fixed: `trace_llm_call` didn't
+support `async` target functions, and `system_instructions` only captured a
+static prompt, not one built per call from request state.
+
+**Known gaps, left honest rather than faked:** no auth on the collector or
+dashboard (fine for a self-hosted personal tool, worth flagging if this
+ever runs somewhere shared); the collector rebuilds its image on every
+`docker compose up` rather than using a pinned/pushed one, which only
+matters for a real deploy, not local dev.
