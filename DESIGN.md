@@ -41,18 +41,48 @@ never copied literally (no staking/wallet content, obviously).
 
 ## Palette
 
-Restrained-but-committed: near-zero-chroma neutrals (hue 276, matching the accent) plus one
-real accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
+Restrained-but-committed: near-zero-chroma neutrals (hue matches the accent) plus one real
+accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
 
-- **Accent (`--primary`)**: indigo/violet, hue 276 — `oklch(0.5 0.21 276)` light,
-  `oklch(0.72 0.17 276)` dark. Used for active nav, focus rings, primary chart series, links.
+- **Accent (`--primary`)**: warm amber/gold, hue ~80 — `oklch(0.5 0.16 78)` light,
+  `oklch(0.74 0.15 85)` dark. Used for active nav, focus rings, primary chart series, links.
+  Originally shipped as indigo/violet (hue 276); replaced after the user called it out as
+  the default "AI/vibe-coded app" accent color -- a real, recognizable cliché, not a matter
+  of taste to defend. Amber ties back to the brand rationale instead: the iris regulates how
+  much light gets through, and gold/amber is the actual color of camera aperture rings and
+  instrument-panel gauges, not a category default for dev tools. Every neutral token's hue
+  moved from 276 to 80 too, so the whole theme is warm-tinted rather than cool-tinted -- a
+  find-and-replace of one number would have left a purple-tinted "gray" underneath a gold
+  accent, which reads as an oversight the moment someone looks closely.
 - **Success**: `oklch(0.5 0.14 155)` light / `oklch(0.72 0.15 155)` dark — real pass/fixed
   states (`Badge variant="success"`), previously rendered as plain gray.
 - **Destructive**: unchanged from the original shadcn defaults.
-- Chart tokens (`--chart-1..5`) now carry real hue instead of grayscale, for future
-  multi-series charts.
+- Chart tokens (`--chart-1..5`): 1 mirrors primary (amber), 2 is teal (190), 3 is blue (250,
+  deliberately not orange/red -- would have collided with amber or destructive), 4 is green
+  (155, matches success), 5 is neutral gray.
+- The Overview promo tile's gradient and `public/favicon.svg` (a static hex copy, since a
+  favicon has no page CSS context) were hardcoded to the old purple and needed manual
+  updates -- token changes don't reach hardcoded arbitrary-value colors, which is exactly how
+  the favicon went unnoticed as a leftover Vite default for as long as it did.
 
 Tokens live in `frontend/src/index.css`, `:root` (light) and `.dark`.
+
+### Dark-mode base: Ink Black / Prussian Blue
+
+Dark mode's neutral base moved from a near-black warm-neutral to two user-specified named
+colors -- Ink Black `#000814` (`--background`) and Prussian Blue `#001d3d` (`--card`,
+`--popover`) -- kept as literal hex rather than approximated to oklch, so the surface is
+exactly the color that was asked for. Derived surfaces (`--secondary`, `--muted`, `--accent`,
+`--chart-5`, `--sidebar`) are `color-mix(in oklch, #001d3d, white N%)` steps off that same
+anchor rather than hand-picked values, for the same reason the amber pass retinted every
+neutral: a derived ramp that quietly drifts back to an unrelated hue is a worse failure than
+one that's visibly, deliberately off, because it reads as an oversight nobody will catch
+without inspecting each token. `--border`/`--input` stayed as translucent white
+(`oklch(1 0 0 / N%)`), which was already hue-independent and needed no change. The amber
+accent (`--primary`) is unchanged and now reads more strongly against a cooler, more
+saturated base than the near-black neutral it replaced -- gold on ink navy is a real,
+recognizable pairing (instrument panels, aviation gauges), not a decorative accident.
+Light mode was left as the warm-neutral amber-tinted palette; this swap is dark-only.
 
 ## Type
 
