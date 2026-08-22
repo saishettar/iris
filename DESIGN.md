@@ -135,6 +135,15 @@ Two corrections after review:
   `text-foreground` treatment every other agent card already uses; only the "Get started"
   button keeps a solid `bg-primary` fill, so exactly one element on the tile carries full
   accent strength instead of the whole card.
+- Light mode's `--accent`/`--accent-foreground` and `--sidebar-accent`/
+  `--sidebar-accent-foreground` (hover and selected states, including the sidebar nav) were
+  still a deliberate 8%-Mahogany tint left over from the Black/Mahogany palette pass --
+  inconsistent with dark mode's now-neutral accent tokens. Both themes use plain
+  `oklch(L 0 0)` for hover/selected now (`0.91`/`0.2` light, `0.24`/`0.94` dark), matching
+  the same symmetry dark mode already had (`--accent` and `--sidebar-accent` share one
+  value, not two hand-picked ones). The request named the sidebar specifically; the general
+  `--accent` token got the same fix since it was the identical leftover tint, not a
+  separate decision.
 
 ## Type
 
