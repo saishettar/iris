@@ -135,6 +135,10 @@ export function Regression() {
   const baselineOptions = runs.filter(
     (r) => r.run_id !== candidateId && r.suite_target === candidateRun?.suite_target
   )
+  const trendRuns = runs
+    .filter((r) => r.suite_target === candidateRun?.suite_target)
+    .slice()
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
   const diffRows = useMemo(() => {
     const descriptions = Array.from(
@@ -190,6 +194,38 @@ export function Regression() {
             />
             <Stat label="Total runs" value={String(runs.length)} icon={Activity} />
           </div>
+
+          {trendRuns.length > 1 && (
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Pass rate over time</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  All runs of {candidateRun.suite_target}, oldest to newest
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="flex h-40 items-end gap-2 border-b border-border/60 px-2 pt-5">
+                  {trendRuns.map((run) => {
+                    const percent = run.test_count ? (run.passed_count / run.test_count) * 100 : 0
+                    return (
+                      <div
+                        key={run.run_id}
+                        className={`flex-1 transition-colors ${
+                          run.run_id === candidateId ? "bg-primary" : "bg-primary/50 hover:bg-primary/75"
+                        }`}
+                        style={{ height: `${Math.max(percent, 2)}%` }}
+                        title={`${run.version_tag ?? run.run_id.slice(0, 8)}: ${run.passed_count}/${run.test_count}`}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                  <span>{new Date(trendRuns[0].created_at).toLocaleDateString()}</span>
+                  <span>{new Date(trendRuns[trendRuns.length - 1].created_at).toLocaleDateString()}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-border/70 bg-card/70 shadow-none">
             <CardHeader>
