@@ -51,3 +51,29 @@ CREATE TABLE IF NOT EXISTS metric_points (
 );
 
 CREATE INDEX IF NOT EXISTS metric_points_name_idx ON metric_points (metric_name);
+
+-- Threshold-based alerting (Datadog Monitors): a rule watches one real
+-- metric over a rolling window and fires a webhook when it's breached.
+-- Evaluated by an in-process background loop (alerts.py), not a cron job --
+-- this is a single long-running collector process, so a real interval loop
+-- is the honest way to do this, not a fake "scheduled" abstraction over it.
+CREATE TABLE IF NOT EXISTS alert_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    metric TEXT NOT NULL CHECK (metric IN ('error_rate', 'latency_p95', 'cost')),
+    threshold DOUBLE PRECISION NOT NULL,
+    window_minutes INT NOT NULL DEFAULT 15,
+    webhook_url TEXT,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS alert_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    rule_id UUID NOT NULL REFERENCES alert_rules (id),
+    fired_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    observed_value DOUBLE PRECISION NOT NULL,
+    message TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS alert_events_rule_id_idx ON alert_events (rule_id);

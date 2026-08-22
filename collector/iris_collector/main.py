@@ -25,6 +25,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from pydantic import BaseModel
 
 from . import db
+from .alerts import alert_loop
 from .live import broadcaster
 from .otlp import extract_spans
 from .otlp_metrics import extract_histogram_points
@@ -48,8 +49,9 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-def on_startup() -> None:
+async def on_startup() -> None:
     db.init_schema()
+    asyncio.create_task(alert_loop())
 
 
 @app.post("/v1/traces")
@@ -188,3 +190,50 @@ def get_eval_run(run_id: str):
 @app.get("/metrics/summary")
 def get_metrics_summary(days: int = 14):
     return db.get_metrics_summary(days=days)
+
+
+class AlertRuleIn(BaseModel):
+    name: str
+    metric: str
+    threshold: float
+    window_minutes: int = 15
+    webhook_url: str | None = None
+
+
+@app.post("/alert-rules")
+def create_alert_rule(rule: AlertRuleIn):
+    if rule.metric not in ("error_rate", "latency_p95", "cost"):
+        raise HTTPException(
+            status_code=422, detail="metric must be one of: error_rate, latency_p95, cost"
+        )
+    return db.create_alert_rule(
+        rule.name, rule.metric, rule.threshold, rule.window_minutes, rule.webhook_url
+    )
+
+
+@app.get("/alert-rules")
+def list_alert_rules():
+    return db.list_alert_rules()
+
+
+class AlertRuleEnabledIn(BaseModel):
+    enabled: bool
+
+
+@app.patch("/alert-rules/{rule_id}")
+def set_alert_rule_enabled(rule_id: str, body: AlertRuleEnabledIn):
+    rule = db.set_alert_rule_enabled(rule_id, body.enabled)
+    if rule is None:
+        raise HTTPException(status_code=404, detail="alert rule not found")
+    return rule
+
+
+@app.delete("/alert-rules/{rule_id}")
+def delete_alert_rule(rule_id: str):
+    db.delete_alert_rule(rule_id)
+    return {"deleted": rule_id}
+
+
+@app.get("/alert-events")
+def list_alert_events(limit: int = 50):
+    return db.list_alert_events(limit=limit)
