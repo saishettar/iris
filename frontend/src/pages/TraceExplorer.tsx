@@ -7,11 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMetricsSummary, listTraces, type TraceSummary } from "@/lib/api"
 
 // Ported from v0's "Trace explorer" card (part of its combined Traces tab).
-// v0's mock rows also had name/latency/cost columns, but GET /traces (db.py's
-// list_traces) only returns trace_id/first_seen_at/span_count -- there's no
-// per-trace name/cost rollup yet, so those columns are still dropped rather
-// than faked. Filtering is real though: model/time-range/error-status all
-// hit the collector's actual query params.
+// v0's mock rows also had a latency/cost column, but GET /traces has no
+// per-trace cost rollup, so that one's still dropped rather than faked.
+// agent_name/service_name (from the root invoke_agent span, if there is
+// one) are real though, pulled from db.py's list_traces() and shown as the
+// primary label per row -- a bare trace_id told you nothing about which
+// agent produced it. Filtering (agent/model/time-range/error-status) all
+// hits the collector's actual query params.
 
 const TIME_RANGES = [
   { label: "All time", hours: null },
@@ -33,8 +35,10 @@ function timeAgo(iso: string): string {
 export function TraceExplorer() {
   const [traces, setTraces] = useState<TraceSummary[]>([])
   const [models, setModels] = useState<string[]>([])
+  const [agents, setAgents] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [model, setModel] = useState("")
+  const [agent, setAgent] = useState("")
   const [rangeHours, setRangeHours] = useState<number | null>(null)
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,16 +48,29 @@ export function TraceExplorer() {
     getMetricsSummary()
       .then((m) => setModels(m.model_usage.map((row) => row.model)))
       .catch(() => {})
+    // Unfiltered, once -- populates the agent select independent of whatever
+    // agent filter is currently applied to the main (filtered) fetch below.
+    listTraces(200)
+      .then((all) => {
+        const names = new Set(all.map((t) => t.agent_name).filter((n): n is string => !!n))
+        setAgents(Array.from(names).sort())
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
     setLoading(true)
     const since = rangeHours ? new Date(Date.now() - rangeHours * 3600_000).toISOString() : undefined
-    listTraces(50, { model: model || undefined, since, hasError: errorsOnly ? true : undefined })
+    listTraces(50, {
+      model: model || undefined,
+      agent: agent || undefined,
+      since,
+      hasError: errorsOnly ? true : undefined,
+    })
       .then(setTraces)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [model, rangeHours, errorsOnly])
+  }, [model, agent, rangeHours, errorsOnly])
 
   const filtered = traces.filter((trace) => trace.trace_id.toLowerCase().includes(query.toLowerCase()))
 
@@ -83,6 +100,19 @@ export function TraceExplorer() {
                 className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
               />
             </div>
+
+            <select
+              value={agent}
+              onChange={(e) => setAgent(e.target.value)}
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All agents</option>
+              {agents.map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </select>
 
             <select
               value={model}
@@ -128,7 +158,7 @@ export function TraceExplorer() {
           )}
           {!loading && !error && filtered.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {query || model || rangeHours || errorsOnly
+              {query || model || agent || rangeHours || errorsOnly
                 ? "No traces match these filters."
                 : "No traces yet -- instrument a call path with iris_otel and check back."}
             </p>
@@ -142,8 +172,12 @@ export function TraceExplorer() {
                 className="flex items-center justify-between rounded-md border border-border/60 p-4 text-left transition-colors hover:bg-accent"
               >
                 <div>
-                  <div className="font-mono text-sm font-medium">{trace.trace_id}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{timeAgo(trace.first_seen_at)}</div>
+                  <div className="text-sm font-medium">
+                    {trace.agent_name ?? trace.service_name ?? "unnamed agent"}
+                  </div>
+                  <div className="mt-1 font-mono text-xs text-muted-foreground">
+                    {trace.trace_id} · {timeAgo(trace.first_seen_at)}
+                  </div>
                 </div>
                 <Badge variant="secondary">{trace.span_count} spans</Badge>
               </Link>

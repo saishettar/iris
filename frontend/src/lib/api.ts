@@ -5,6 +5,8 @@ export interface TraceSummary {
   trace_id: string
   first_seen_at: string
   span_count: number
+  agent_name: string | null
+  service_name: string | null
 }
 
 export interface Span {
@@ -86,6 +88,7 @@ async function apiFetch<T>(path: string): Promise<T> {
 
 export interface TraceFilters {
   model?: string
+  agent?: string
   since?: string
   until?: string
   hasError?: boolean
@@ -94,6 +97,7 @@ export interface TraceFilters {
 export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<TraceSummary[]> {
   const params = new URLSearchParams({ limit: String(limit) })
   if (filters.model) params.set("model", filters.model)
+  if (filters.agent) params.set("agent", filters.agent)
   if (filters.since) params.set("since", filters.since)
   if (filters.until) params.set("until", filters.until)
   if (filters.hasError !== undefined) params.set("has_error", String(filters.hasError))
