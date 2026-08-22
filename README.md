@@ -30,10 +30,16 @@ environment — no local Docker/Postgres available during development; the code
 is written against the real driver/schema and is waiting on a live run).
 
 The dashboard's four views (trace explorer, trace detail, analytics,
-regression) are built from a v0-generated design — trace explorer (`/`),
-trace detail (`/traces/:traceId`), and regression (`/regression`) are wired
-to the real collector API; analytics (`/analytics`) still shows v0's mock
-data behind a TODO, pending an aggregate-metrics endpoint.
+regression) are built from a v0-generated design and all four now fetch from
+the real collector API — trace explorer (`/`), trace detail
+(`/traces/:traceId`), regression (`/regression`), and analytics
+(`/analytics`), the last backed by a new `GET /metrics/summary` endpoint
+(trace volume, model usage, and real latency percentiles derived from span
+data; no cost-by-model numbers, since there's no pricing table behind the
+captured token counts to convert them honestly). Endpoint response handling
+checked in-browser for both a populated and an empty-data response; the
+empty case is what it actually shows right now, since nothing's flowing
+through a live collector in this environment.
 
 The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
 assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that

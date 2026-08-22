@@ -163,3 +163,56 @@ def get_eval_run(run_id: str) -> list[dict]:
                 (run_id,),
             )
             return cur.fetchall()
+
+
+def get_metrics_summary(days: int = 14) -> dict:
+    """Aggregate metrics derived from real span data. No cost figures here --
+    there's no pricing table backing gen_ai.usage.*, so cost isn't faked."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT date_trunc('day', first_seen_at) AS day, count(*) AS count
+                FROM traces
+                WHERE first_seen_at >= now() - (%s || ' days')::interval
+                GROUP BY day
+                ORDER BY day
+                """,
+                (days,),
+            )
+            trace_volume = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT attributes->>'gen_ai.request.model' AS model, count(*) AS count
+                FROM spans
+                WHERE name = 'chat' AND attributes ? 'gen_ai.request.model'
+                GROUP BY model
+                ORDER BY count DESC
+                """
+            )
+            model_usage = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p50,
+                    percentile_cont(0.95) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p95,
+                    percentile_cont(0.99) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p99
+                FROM spans
+                WHERE name = 'chat' AND end_time IS NOT NULL
+                """
+            )
+            latency_percentiles = cur.fetchone()
+
+    return {
+        "trace_volume": trace_volume,
+        "model_usage": model_usage,
+        "latency_percentiles": latency_percentiles,
+    }
