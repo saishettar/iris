@@ -25,7 +25,7 @@ Every LLM app eventually needs the same three things: know what your pipeline ac
 - YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`, `cost`) and LLM-judge assertions (`llm-rubric`, `answer-relevance`) via Claude, plus CLI-level baseline diffing (`--baseline`)
 - Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows), with a pass-rate-over-time trend across every run of a suite
 - A GitHub Action (in both dogfooded apps) that runs the eval suite on every PR touching the prompt and posts results as a comment, failing the check on regression
-- React dashboard (trace explorer, trace/span detail, analytics, regression) wired entirely to the real collector API — no mock data left in the shipped app
+- React dashboard (an agent overview with real per-agent SQL rollups, trace explorer, trace/span detail with a real proportional-width waterfall, analytics, regression, and a live agent-connection page) wired entirely to the real collector API — no mock data left in the shipped app
 - One-command self-hosted setup: `docker compose up -d` brings up Postgres, the collector, *and* the dashboard
 
 ## Tech Stack
@@ -49,6 +49,11 @@ Dashboard at `http://localhost:5173`, collector at `http://localhost:4318` (the 
 To also run eval suites with `llm-rubric` assertions, set `ANTHROPIC_API_KEY` in your environment.
 
 ## Usage
+
+Once the stack is up, the dashboard's own **Connect** page (`/connect`) walks through
+these same steps live against your running collector, with a real "waiting for your
+first trace" status that flips the moment one lands. What follows here is the same
+information for reading outside the app.
 
 **Instrument an LLM call** (works on sync or async functions):
 
@@ -103,7 +108,7 @@ Add `--out results.json --version-tag <label>` and `POST` the file to `/eval-run
 │   └── iris_eval/            # YAML suite loader, assertions, LLM-judge, diff, CLI
 ├── frontend/
 │   └── src/
-│       ├── pages/            # TraceExplorer, TraceDetail, Analytics, Regression
+│       ├── pages/            # Overview, TraceExplorer, TraceDetail, Analytics, Regression, Connect
 │       ├── components/       # Layout shell + shadcn/ui primitives
 │       └── lib/api.ts        # Typed fetch client for the collector
 ├── docs/screenshots/
