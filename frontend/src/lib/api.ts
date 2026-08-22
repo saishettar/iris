@@ -51,6 +51,9 @@ export interface TraceVolumeDay {
 export interface ModelUsage {
   model: string
   count: number
+  input_tokens: number
+  output_tokens: number
+  cost_usd: number | null
 }
 
 export interface LatencyPercentiles {

@@ -8,6 +8,8 @@ import psycopg2
 import psycopg2.extras
 import psycopg2.pool
 
+from .pricing import estimate_cost_usd
+
 _pool: psycopg2.pool.SimpleConnectionPool | None = None
 
 SCHEMA_SQL = (Path(__file__).parent / "schema.sql").read_text()
@@ -166,8 +168,9 @@ def get_eval_run(run_id: str) -> list[dict]:
 
 
 def get_metrics_summary(days: int = 14) -> dict:
-    """Aggregate metrics derived from real span data. No cost figures here --
-    there's no pricing table backing gen_ai.usage.*, so cost isn't faked."""
+    """Aggregate metrics derived from real span data. cost_usd per model comes
+    from pricing.py's table, which is empty by default -- a model not in it
+    just gets cost_usd: None rather than a guessed number."""
     with _connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
@@ -184,7 +187,13 @@ def get_metrics_summary(days: int = 14) -> dict:
 
             cur.execute(
                 """
-                SELECT attributes->>'gen_ai.request.model' AS model, count(*) AS count
+                SELECT
+                    attributes->>'gen_ai.request.model' AS model,
+                    count(*) AS count,
+                    COALESCE(SUM((attributes->>'gen_ai.usage.input_tokens')::numeric), 0)::float
+                        AS input_tokens,
+                    COALESCE(SUM((attributes->>'gen_ai.usage.output_tokens')::numeric), 0)::float
+                        AS output_tokens
                 FROM spans
                 WHERE name = 'chat' AND attributes ? 'gen_ai.request.model'
                 GROUP BY model
@@ -192,6 +201,8 @@ def get_metrics_summary(days: int = 14) -> dict:
                 """
             )
             model_usage = cur.fetchall()
+            for row in model_usage:
+                row["cost_usd"] = estimate_cost_usd(row["model"], row["input_tokens"], row["output_tokens"])
 
             cur.execute(
                 """
