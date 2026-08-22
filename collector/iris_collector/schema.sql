@@ -58,3 +58,17 @@ CREATE TABLE IF NOT EXISTS metric_points (
 );
 
 CREATE INDEX IF NOT EXISTS metric_points_name_idx ON metric_points (metric_name);
+
+-- Human feedback on a trace -- good/bad plus an optional note -- the
+-- human-in-the-loop pattern Langfuse Scores / LangSmith Feedback both
+-- ship. Kept separate from eval_results: these are judgments a person made
+-- looking at real production output, not an automated assertion's verdict.
+CREATE TABLE IF NOT EXISTS annotations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    trace_id TEXT NOT NULL REFERENCES traces (trace_id),
+    verdict TEXT NOT NULL CHECK (verdict IN ('good', 'bad')),
+    note TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS annotations_trace_id_idx ON annotations (trace_id);
