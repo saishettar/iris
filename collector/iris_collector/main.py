@@ -102,10 +102,37 @@ def list_traces(
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
+    tag: str | None = None,
 ):
     return db.list_traces(
-        limit=limit, model=model, agent=agent, since=since, until=until, has_error=has_error
+        limit=limit,
+        model=model,
+        agent=agent,
+        since=since,
+        until=until,
+        has_error=has_error,
+        tag=tag,
     )
+
+
+class TagIn(BaseModel):
+    tag: str
+
+
+@app.post("/traces/{trace_id}/tags")
+def add_trace_tag(trace_id: str, body: TagIn):
+    tag = body.tag.strip().lower()
+    return {"tags": db.add_trace_tag(trace_id, tag)}
+
+
+@app.delete("/traces/{trace_id}/tags/{tag}")
+def remove_trace_tag(trace_id: str, tag: str):
+    return {"tags": db.remove_trace_tag(trace_id, tag)}
+
+
+@app.get("/tags")
+def list_tags():
+    return db.list_tags()
 
 
 @app.get("/traces/stream")
@@ -141,6 +168,11 @@ def get_agent_summary():
 @app.get("/traces/{trace_id}")
 def get_trace(trace_id: str):
     return db.get_trace_spans(trace_id)
+
+
+@app.get("/traces/{trace_id}/tags")
+def get_trace_tags(trace_id: str):
+    return {"tags": db.get_trace_tags(trace_id)}
 
 
 class AssertionResultIn(BaseModel):

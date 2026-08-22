@@ -87,6 +87,7 @@ def list_traces(
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
+    tag: str | None = None,
 ) -> list[dict]:
     conditions = []
     params: list = []
@@ -124,6 +125,9 @@ def list_traces(
             "NOT EXISTS (SELECT 1 FROM spans s3 WHERE s3.trace_id = t.trace_id "
             "AND s3.status_code = 'STATUS_CODE_ERROR')"
         )
+    if tag:
+        conditions.append("%s = ANY(t.tags)")
+        params.append(tag)
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     params.append(limit)
@@ -135,6 +139,7 @@ def list_traces(
                 SELECT
                     t.trace_id,
                     t.first_seen_at,
+                    t.tags,
                     count(s.span_id) AS span_count,
                     (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
                      WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
@@ -145,7 +150,7 @@ def list_traces(
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
                 {where_clause}
-                GROUP BY t.trace_id, t.first_seen_at
+                GROUP BY t.trace_id, t.first_seen_at, t.tags
                 ORDER BY t.first_seen_at DESC
                 LIMIT %s
                 """,
@@ -168,6 +173,7 @@ def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
                 SELECT
                     t.trace_id,
                     t.first_seen_at,
+                    t.tags,
                     count(s.span_id) AS span_count,
                     (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
                      WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
@@ -178,11 +184,70 @@ def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
                 WHERE t.trace_id = ANY(%s)
-                GROUP BY t.trace_id, t.first_seen_at
+                GROUP BY t.trace_id, t.first_seen_at, t.tags
                 """,
                 (trace_ids,),
             )
             return cur.fetchall()
+
+
+def add_trace_tag(trace_id: str, tag: str) -> list[str]:
+    """Postgres array_append with a pre-check rather than a set union in SQL --
+    keeps tag order stable (append order) instead of the arbitrary order a
+    dedup-via-set approach would produce, which matters for a user manually
+    building up a small ordered list of tags on one trace."""
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE traces SET tags = array_append(tags, %s)
+                WHERE trace_id = %s AND NOT (%s = ANY(tags))
+                RETURNING tags
+                """,
+                (tag, trace_id, tag),
+            )
+            row = cur.fetchone()
+            if row is not None:
+                return row[0]
+            cur.execute("SELECT tags FROM traces WHERE trace_id = %s", (trace_id,))
+            existing = cur.fetchone()
+            return existing[0] if existing else []
+
+
+def remove_trace_tag(trace_id: str, tag: str) -> list[str]:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE traces SET tags = array_remove(tags, %s) WHERE trace_id = %s RETURNING tags",
+                (tag, trace_id),
+            )
+            row = cur.fetchone()
+            return row[0] if row else []
+
+
+def list_tags() -> list[dict]:
+    """Distinct tags in use across all traces, with counts -- powers the tag
+    filter dropdown without the frontend having to derive it from a full
+    trace dump."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT tag, count(*) AS trace_count
+                FROM traces, unnest(tags) AS tag
+                GROUP BY tag
+                ORDER BY trace_count DESC, tag
+                """
+            )
+            return cur.fetchall()
+
+
+def get_trace_tags(trace_id: str) -> list[str]:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT tags FROM traces WHERE trace_id = %s", (trace_id,))
+            row = cur.fetchone()
+            return row[0] if row else []
 
 
 def get_trace_spans(trace_id: str) -> list[dict]:
