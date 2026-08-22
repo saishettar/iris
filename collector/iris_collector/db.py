@@ -185,6 +185,164 @@ def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
             return cur.fetchall()
 
 
+def create_alert_rule(
+    name: str, metric: str, threshold: float, window_minutes: int, webhook_url: str | None
+) -> dict:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO alert_rules (name, metric, threshold, window_minutes, webhook_url)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING *
+                """,
+                (name, metric, threshold, window_minutes, webhook_url),
+            )
+            return cur.fetchone()
+
+
+def list_alert_rules() -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM alert_rules ORDER BY created_at DESC")
+            return cur.fetchall()
+
+
+def set_alert_rule_enabled(rule_id: str, enabled: bool) -> dict | None:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "UPDATE alert_rules SET enabled = %s WHERE id = %s RETURNING *",
+                (enabled, rule_id),
+            )
+            return cur.fetchone()
+
+
+def delete_alert_rule(rule_id: str) -> None:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM alert_rules WHERE id = %s", (rule_id,))
+
+
+def evaluate_alert_rule(rule: dict) -> float | None:
+    """The real value a rule's metric currently has over its own window --
+    the same aggregate queries get_metrics_summary() runs for the dashboard,
+    just scoped to window_minutes instead of a fixed days=N. Returns None
+    when there's no data to evaluate yet (an empty window is not a 0 -- it's
+    unknown, and firing an alert off an empty window would be a false
+    positive on a quiet self-hosted instance)."""
+    window = rule["window_minutes"]
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            if rule["metric"] == "error_rate":
+                cur.execute(
+                    """
+                    SELECT
+                        count(*),
+                        count(*) FILTER (
+                            WHERE EXISTS (SELECT 1 FROM spans s WHERE s.trace_id = t.trace_id
+                                          AND s.status_code = 'STATUS_CODE_ERROR')
+                        )
+                    FROM traces t
+                    WHERE t.first_seen_at >= now() - (%s || ' minutes')::interval
+                    """,
+                    (window,),
+                )
+                total, errored = cur.fetchone()
+                if not total:
+                    return None
+                return (errored / total) * 100
+
+            if rule["metric"] == "latency_p95":
+                cur.execute(
+                    """
+                    SELECT percentile_cont(0.95) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    )
+                    FROM spans
+                    WHERE name = 'chat' AND end_time IS NOT NULL
+                        AND start_time >= now() - (%s || ' minutes')::interval
+                    """,
+                    (window,),
+                )
+                (p95,) = cur.fetchone()
+                return p95
+
+            if rule["metric"] == "cost":
+                cur.execute(
+                    """
+                    SELECT
+                        attributes->>'gen_ai.request.model',
+                        COALESCE(SUM((attributes->>'gen_ai.usage.input_tokens')::numeric), 0),
+                        COALESCE(SUM((attributes->>'gen_ai.usage.output_tokens')::numeric), 0)
+                    FROM spans
+                    WHERE name = 'chat' AND attributes ? 'gen_ai.request.model'
+                        AND start_time >= now() - (%s || ' minutes')::interval
+                    GROUP BY 1
+                    """,
+                    (window,),
+                )
+                rows = cur.fetchall()
+                if not rows:
+                    return None
+                total_cost = 0.0
+                any_priced = False
+                for model, input_tokens, output_tokens in rows:
+                    cost = estimate_cost_usd(model, float(input_tokens), float(output_tokens))
+                    if cost is not None:
+                        any_priced = True
+                        total_cost += cost
+                return total_cost if any_priced else None
+
+    return None
+
+
+def recently_fired(rule_id: str, window_minutes: int) -> bool:
+    """At most one firing per rule per window -- without this, a sustained
+    breach re-fires (and re-POSTs the webhook) on every check-loop tick."""
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 1 FROM alert_events
+                WHERE rule_id = %s AND fired_at >= now() - (%s || ' minutes')::interval
+                LIMIT 1
+                """,
+                (rule_id, window_minutes),
+            )
+            return cur.fetchone() is not None
+
+
+def record_alert_event(rule_id: str, observed_value: float, message: str) -> dict:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO alert_events (rule_id, observed_value, message)
+                VALUES (%s, %s, %s)
+                RETURNING *
+                """,
+                (rule_id, observed_value, message),
+            )
+            return cur.fetchone()
+
+
+def list_alert_events(limit: int = 50) -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT ae.*, ar.name AS rule_name, ar.metric
+                FROM alert_events ae
+                JOIN alert_rules ar ON ar.id = ae.rule_id
+                ORDER BY ae.fired_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+            return cur.fetchall()
+
+
 def get_trace_spans(trace_id: str) -> list[dict]:
     with _connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
