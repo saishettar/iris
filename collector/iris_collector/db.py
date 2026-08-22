@@ -318,3 +318,63 @@ def list_metric_points(limit: int = 100) -> list[dict]:
                 (limit,),
             )
             return cur.fetchall()
+
+
+def get_otel_metrics_summary(hours: int = 24) -> dict:
+    """Aggregates from the real OTel Metrics signal (metric_points), not the
+    span-based SQL aggregates get_metrics_summary() computes -- this is what
+    proves the gen_ai.client.operation.duration/token.usage histograms are
+    actually flowing, not just theoretically emitted."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    COALESCE(SUM(count), 0) AS operation_count,
+                    CASE WHEN SUM(count) > 0 THEN SUM(sum_value) / SUM(count) ELSE NULL END
+                        AS avg_duration_s
+                FROM metric_points
+                WHERE metric_name = 'gen_ai.client.operation.duration'
+                    AND recorded_at >= now() - (%s || ' hours')::interval
+                """,
+                (hours,),
+            )
+            duration_summary = cur.fetchone()
+
+            cur.execute(
+                """
+                SELECT
+                    attributes->>'gen_ai.request.model' AS model,
+                    attributes->>'gen_ai.token.type' AS token_type,
+                    COALESCE(SUM(sum_value), 0) AS total_tokens
+                FROM metric_points
+                WHERE metric_name = 'gen_ai.client.token.usage'
+                    AND recorded_at >= now() - (%s || ' hours')::interval
+                GROUP BY model, token_type
+                ORDER BY model, token_type
+                """,
+                (hours,),
+            )
+            token_usage = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT
+                    date_trunc('hour', recorded_at) AS bucket,
+                    COALESCE(SUM(count), 0) AS operation_count
+                FROM metric_points
+                WHERE metric_name = 'gen_ai.client.operation.duration'
+                    AND recorded_at >= now() - (%s || ' hours')::interval
+                GROUP BY bucket
+                ORDER BY bucket
+                """,
+                (hours,),
+            )
+            operations_by_hour = cur.fetchall()
+
+    return {
+        "operation_count": duration_summary["operation_count"],
+        "avg_duration_s": duration_summary["avg_duration_s"],
+        "token_usage": token_usage,
+        "operations_by_hour": operations_by_hour,
+    }

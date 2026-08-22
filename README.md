@@ -18,7 +18,8 @@ Every LLM app eventually needs the same three things: know what your pipeline ac
 - Also emits the conventions' actual OTel *Metrics*: `gen_ai.client.operation.duration` and `gen_ai.client.token.usage` as real Histogram instruments over OTLP, not just span attributes a dashboard aggregates after the fact
 - Prompt/response content capture is opt-in and off by default (`IRIS_CAPTURE_CONTENT`), matching the convention's privacy stance
 - Hand-rolled OTLP/HTTP collector (FastAPI) that parses the real `ExportTraceServiceRequest`/`ExportMetricsServiceRequest` protobufs directly via `opentelemetry-proto`, rather than wrapping the stock OpenTelemetry Collector binary
-- Postgres-backed storage for traces/spans, eval runs, and raw OTel metric points, with aggregate queries for trace volume (filterable by model/time-range/error-status), model usage, and real p50/p95/p99 latency percentiles and trends computed from span timestamps
+- Postgres-backed storage for traces/spans, eval runs, and real OTel metric points, with aggregate queries for trace volume (filterable by model/time-range/error-status), model usage, and real p50/p95/p99 latency percentiles and trends computed from span timestamps
+- Analytics visualizes both signals distinctly: span-derived aggregates above a separate "OTel Metrics" section reading from the actual `gen_ai.client.*` histograms, not merged into one and mislabeled
 - Cost-by-model computed from real captured token counts against an editable pricing table — empty by default rather than showing a fabricated number
 - YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`, `cost`) and LLM-judge assertions (`llm-rubric`, `answer-relevance`) via Claude, plus CLI-level baseline diffing (`--baseline`)
 - Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows), with a pass-rate-over-time trend across every run of a suite
@@ -142,7 +143,7 @@ eval/ (iris-eval CLI)               │
                                      │
                                      │ GET /traces (+filters),
                                      │     /eval-runs, /metrics/summary,
-                                     │     /metrics/raw
+                                     │     /metrics/otel-summary, /metrics/raw
                                      ▼
                               React dashboard
                         (trace explorer/detail,
@@ -153,24 +154,19 @@ eval/ (iris-eval CLI)               │
 
 ## Roadmap / Limitations
 
-Everything that was a real gap against the original plan (no OTel Metrics
-signal, missing `cost`/`answer-relevance` assertions, trace filtering,
-eval/latency trend charts, no CLI baseline diff, `undercut` had no eval
-suite, `docker compose up` didn't include the frontend) has been closed —
-each verified against the live stack, not just unit-tested in isolation.
-What's left:
+Every real gap against the original plan (no OTel Metrics signal, missing
+`cost`/`answer-relevance` assertions, trace filtering, eval/latency trend
+charts, no CLI baseline diff, `undercut` had no eval suite, `docker compose
+up` didn't include the frontend, and Analytics not visualizing the OTel
+metric points once they existed) has been closed — each verified against
+the live stack, not just unit-tested in isolation. What's left is a genuine
+design decision, not an oversight:
 
-- Real OTel metric points (`gen_ai.client.operation.duration`/`token.usage`)
-  are ingested and stored (`GET /metrics/raw`), but there's no dashboard
-  visualization of them yet — Analytics still reads from the span-based SQL
-  aggregates, which remain accurate and don't need replacing, just don't
-  (yet) draw from this second, now-real signal
 - Eval runs are standalone re-invocations of the target function, not
-  scoring of live traffic already flowing through the collector — a
-  deliberate design decision (closer to how promptfoo actually works than
-  the platform-integrated version originally planned), not an oversight.
-  Follows that filtering traces by eval score isn't possible either, for
-  the same reason
+  scoring of live traffic already flowing through the collector — closer to
+  how promptfoo actually works than the platform-integrated version
+  originally planned. Follows that filtering traces by eval score isn't
+  possible either, for the same reason
 - No auth on the collector or dashboard — fine for a self-hosted personal
   tool, worth flagging if this ever runs somewhere shared
 
