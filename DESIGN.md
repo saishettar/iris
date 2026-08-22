@@ -41,18 +41,109 @@ never copied literally (no staking/wallet content, obviously).
 
 ## Palette
 
-Restrained-but-committed: near-zero-chroma neutrals (hue 276, matching the accent) plus one
-real accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
+Restrained-but-committed: near-zero-chroma neutrals (hue matches the accent) plus one real
+accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
 
-- **Accent (`--primary`)**: indigo/violet, hue 276 — `oklch(0.5 0.21 276)` light,
-  `oklch(0.72 0.17 276)` dark. Used for active nav, focus rings, primary chart series, links.
+- **Accent (`--primary`)**: warm amber/gold, hue ~80 — `oklch(0.5 0.16 78)` light,
+  `oklch(0.74 0.15 85)` dark. Used for active nav, focus rings, primary chart series, links.
+  Originally shipped as indigo/violet (hue 276); replaced after the user called it out as
+  the default "AI/vibe-coded app" accent color -- a real, recognizable cliché, not a matter
+  of taste to defend. Amber ties back to the brand rationale instead: the iris regulates how
+  much light gets through, and gold/amber is the actual color of camera aperture rings and
+  instrument-panel gauges, not a category default for dev tools. Every neutral token's hue
+  moved from 276 to 80 too, so the whole theme is warm-tinted rather than cool-tinted -- a
+  find-and-replace of one number would have left a purple-tinted "gray" underneath a gold
+  accent, which reads as an oversight the moment someone looks closely.
 - **Success**: `oklch(0.5 0.14 155)` light / `oklch(0.72 0.15 155)` dark — real pass/fixed
   states (`Badge variant="success"`), previously rendered as plain gray.
 - **Destructive**: unchanged from the original shadcn defaults.
-- Chart tokens (`--chart-1..5`) now carry real hue instead of grayscale, for future
-  multi-series charts.
+- Chart tokens (`--chart-1..5`): 1 mirrors primary (amber), 2 is teal (190), 3 is blue (250,
+  deliberately not orange/red -- would have collided with amber or destructive), 4 is green
+  (155, matches success), 5 is neutral gray.
+- The Overview promo tile's gradient and `public/favicon.svg` (a static hex copy, since a
+  favicon has no page CSS context) were hardcoded to the old purple and needed manual
+  updates -- token changes don't reach hardcoded arbitrary-value colors, which is exactly how
+  the favicon went unnoticed as a leftover Vite default for as long as it did.
 
 Tokens live in `frontend/src/index.css`, `:root` (light) and `.dark`.
+
+### Superseded: Ink Black / Prussian Blue, and the amber accent
+
+Both were replaced in the same branch by the Black / Mahogany Red palette below before
+either shipped to `main` -- left out of this file rather than kept as history noise.
+
+## Current palette: Black / Mahogany Red
+
+A second, larger user-specified named palette (Black, Carbon Black, Dark Garnet, Mahogany
+Red x2, Strawberry Red, Silver, Dust Grey, White Smoke, White) replaced both the amber
+accent and the ink-navy dark base, for both themes this time, not dark-only. Not every
+supplied swatch is used -- explicitly permitted ("don't feel the need to use all of them")
+-- and the curation itself is a real decision worth recording:
+
+- **`--primary`**: Mahogany Red, the two supplied shades split by theme -- `#a4161a`
+  (darker, light mode) and `#ba181b` (brighter, dark mode) -- same light/dark-variant
+  pattern used for every accent this project has shipped.
+- **`--destructive`**: Strawberry Red `#e5383b`, deliberately a *different* red from
+  primary rather than reusing Mahogany. Collapsing brand-accent and error-state into one
+  red would erase the distinction between "this is the product's color" and "this is
+  broken" -- two named reds in the same supplied palette made keeping that distinction
+  free.
+- **Backgrounds**: Black `#0b090a` / Carbon Black `#161a1d` (dark mode background/card);
+  White Smoke `#f5f3f4` / White `#ffffff` (light mode background/card) -- card is the
+  lighter, "raised" tone in both themes, same hierarchy direction as every palette this
+  project has used.
+- **Neutrals**: Silver `#b1a7a6` and Dust Grey `#d3d3d3` cover muted text and borders in
+  light mode; derived dark-mode surfaces (`--secondary`, `--muted`, `--sidebar`) are
+  `color-mix()` steps off Carbon Black, and hover/accent surfaces blend in Dark Garnet
+  (`color-mix(in oklch, #161a1d, #660708 35%)`) rather than a plain lighter gray -- ties
+  the reds into the neutral ramp itself instead of leaving them isolated to primary/
+  destructive, the same reasoning that drove retinting every neutral in the amber pass.
+- **Chart series 2-4** (teal/blue/green) stay outside this red family on purpose: a
+  data-viz series needs colors a viewer can tell apart at a glance, and three shades of one
+  red hue can't do that. Chart 1 and chart-5 do use the family (Mahogany, Silver).
+
+**Open tension, flagged rather than silently resolved:** this is an observability tool,
+where red carries unusually strong, specific meaning (something failed). Making the brand
+accent itself a red means ordinary volume/latency chart bars, the active-nav highlight, and
+default-state icons all render in a color family adjacent to the actual error state
+(Strawberry Red badges on Regression/Trace Detail). Verified this is a real, visible
+tension, not a hypothetical: `Regression.tsx`'s "Pass rate over time" trend bars render
+Mahogany Red immediately beside literal `Fail`/`Regressed` badges in Strawberry Red. The
+two reds are visually distinguishable (deeper/muted vs. bright/saturated) and this was
+executed as specified, not overridden -- but it's the one place this palette asks more of
+the viewer than the previous two did, and is worth deciding deliberately rather than
+inheriting by default.
+
+### Follow-up: neutral dark backgrounds, and a toned-down promo tile
+
+Two corrections after review:
+
+- Dark mode's `--background`/`--card`/`--popover`/`--secondary`/`--muted`/`--accent`/
+  `--sidebar*` moved from the literal Black/Carbon Black hex to true zero-chroma neutral
+  gray (`oklch(L 0 0)`). Black `#0b090a` and Carbon Black `#161a1d` each carry a faint,
+  *different* tint (warm and cool respectively) once you look closely -- inconsistent with
+  each other and with `:root`'s genuinely neutral White Smoke/White. Mahogany Red
+  (primary), Strawberry Red (destructive), and Silver (chart-5) still do real work; every
+  background/surface token is now plain neutral.
+- The Overview promo tile's gradient was a full-strength Mahogany-to-Black block with a
+  matching glow shadow -- too bold sitting among otherwise-quiet neutral cards, more so
+  now that the backgrounds themselves went neutral. Rebuilt with `color-mix(in oklch,
+  var(--color-primary), var(--color-card) 82%)` fading to the plain card color: a
+  theme-relative, barely-there tint instead of a hand-picked-per-theme literal block, so it
+  self-corrects if the palette changes again rather than needing two more manual edits. The
+  icon badge and body text dropped to the same `bg-primary/15 text-primary` /
+  `text-foreground` treatment every other agent card already uses; only the "Get started"
+  button keeps a solid `bg-primary` fill, so exactly one element on the tile carries full
+  accent strength instead of the whole card.
+- Light mode's `--accent`/`--accent-foreground` and `--sidebar-accent`/
+  `--sidebar-accent-foreground` (hover and selected states, including the sidebar nav) were
+  still a deliberate 8%-Mahogany tint left over from the Black/Mahogany palette pass --
+  inconsistent with dark mode's now-neutral accent tokens. Both themes use plain
+  `oklch(L 0 0)` for hover/selected now (`0.91`/`0.2` light, `0.24`/`0.94` dark), matching
+  the same symmetry dark mode already had (`--accent` and `--sidebar-accent` share one
+  value, not two hand-picked ones). The request named the sidebar specifically; the general
+  `--accent` token got the same fix since it was the identical leftover tint, not a
+  separate decision.
 
 ## Type
 
