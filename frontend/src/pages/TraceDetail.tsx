@@ -1,19 +1,34 @@
 import { useEffect, useState } from "react"
-import { ChevronLeft } from "lucide-react"
+import { ChevronLeft, GitBranch, GanttChartSquare } from "lucide-react"
 import { Link, useParams } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getTraceSpans, type Span } from "@/lib/api"
+import { TraceGraph } from "@/pages/TraceGraph"
 
-// Real proportional-width waterfall: each span's bar is positioned/sized by
-// its actual start offset and duration against the trace's total span, and
-// indented by its real parent-child depth -- the flat ordered list this
-// replaced was an honest placeholder (v0 never generated this view) but told
-// you nothing about overlap, nesting, or where the time actually went.
+// Two views over the same spans, toggled below: a real proportional-width
+// waterfall (where did the time go) and a call-tree graph (what called
+// what -- see TraceGraph.tsx). The waterfall's bars are positioned/sized by
+// each span's actual start offset and duration against the trace's total
+// span, and indented by real parent-child depth -- the flat ordered list
+// this replaced was an honest placeholder (v0 never generated this view)
+// but told you nothing about overlap, nesting, or where the time went.
 
-function ms(iso: string): number {
+export function ms(iso: string): number {
   return new Date(iso).getTime()
+}
+
+export function spanDuration(span: Span): number {
+  const start = ms(span.start_time)
+  const end = span.end_time ? ms(span.end_time) : start
+  return Math.max(end - start, 0)
+}
+
+export function formatDuration(msValue: number): string {
+  if (msValue < 10) return `${msValue.toFixed(1)}ms`
+  if (msValue < 1000) return `${Math.round(msValue)}ms`
+  return `${(msValue / 1000).toFixed(2)}s`
 }
 
 function agentName(span: Span | undefined): string | null {
@@ -37,17 +52,12 @@ function depthOf(span: Span, byId: Map<string, Span>): number {
 
 const RULER_TICKS = [0, 25, 50, 75, 100]
 
-function formatDuration(msValue: number): string {
-  if (msValue < 10) return `${msValue.toFixed(1)}ms`
-  if (msValue < 1000) return `${Math.round(msValue)}ms`
-  return `${(msValue / 1000).toFixed(2)}s`
-}
-
 export function TraceDetail() {
   const { traceId } = useParams<{ traceId: string }>()
   const [spans, setSpans] = useState<Span[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [view, setView] = useState<"waterfall" | "graph">("waterfall")
 
   useEffect(() => {
     if (!traceId) return
@@ -72,8 +82,7 @@ export function TraceDetail() {
     .sort((a, b) => ms(a.start_time) - ms(b.start_time))
     .map((span) => {
       const start = ms(span.start_time)
-      const end = span.end_time ? ms(span.end_time) : start
-      const duration = Math.max(end - start, 0)
+      const duration = spanDuration(span)
       const offsetPct = ((start - traceStart) / totalDuration) * 100
       const widthPct = Math.max((duration / totalDuration) * 100, 0.6)
       return {
@@ -120,6 +129,29 @@ export function TraceDetail() {
           )}
 
           {rows.length > 0 && (
+            <div className="inline-flex rounded-full border border-border bg-muted/40 p-1">
+              <button
+                onClick={() => setView("waterfall")}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === "waterfall" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <GanttChartSquare className="size-3.5" /> Waterfall
+              </button>
+              <button
+                onClick={() => setView("graph")}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  view === "graph" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <GitBranch className="size-3.5" /> Graph
+              </button>
+            </div>
+          )}
+
+          {rows.length > 0 && view === "graph" && <TraceGraph spans={spans} />}
+
+          {rows.length > 0 && view === "waterfall" && (
             <div className="overflow-hidden rounded-xl border border-border">
               <div className="grid grid-cols-[minmax(160px,280px)_1fr] border-b border-border bg-muted/50 px-3 py-2">
                 <span className="text-xs font-medium text-muted-foreground">Span</span>
