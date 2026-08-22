@@ -53,82 +53,87 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.16 0.012 80);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.16 0.012 80);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.16 0.012 80);
-    --primary: oklch(0.5 0.16 78);
-    --primary-foreground: oklch(0.98 0.02 78);
-    --secondary: oklch(0.96 0.006 80);
-    --secondary-foreground: oklch(0.24 0.02 80);
-    --muted: oklch(0.96 0.006 80);
-    --muted-foreground: oklch(0.48 0.016 80);
-    --accent: oklch(0.94 0.03 80);
-    --accent-foreground: oklch(0.32 0.07 80);
-    --destructive: oklch(0.577 0.245 27.325);
+    /* Black / Mahogany Red / Strawberry Red / Silver / Dust Grey / White
+       Smoke / White -- user-specified named palette, kept as literal hex.
+       Not every supplied swatch is used (Carbon Black and Dark Garnet are
+       dark-mode-only); chart-2/3/4 stay outside this family on purpose,
+       see DESIGN.md -- a data-viz series needs colors a viewer can tell
+       apart at a glance, which three shades of one red family can't do. */
+    --background: #f5f3f4;
+    --foreground: #0b090a;
+    --card: #ffffff;
+    --card-foreground: #0b090a;
+    --popover: #ffffff;
+    --popover-foreground: #0b090a;
+    --primary: #a4161a;
+    --primary-foreground: #ffffff;
+    --secondary: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
+    --secondary-foreground: #0b090a;
+    --muted: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
+    --muted-foreground: color-mix(in oklch, #0b090a, #b1a7a6 55%);
+    --accent: color-mix(in oklch, #ffffff, #a4161a 8%);
+    --accent-foreground: #660708;
+    --destructive: #e5383b;
     --success: oklch(0.5 0.14 155);
     --success-foreground: oklch(0.5 0.14 155);
-    --border: oklch(0.9 0.007 80);
-    --input: oklch(0.9 0.007 80);
-    --ring: oklch(0.5 0.16 78);
-    --chart-1: oklch(0.5 0.16 78);
+    --border: #d3d3d3;
+    --input: #d3d3d3;
+    --ring: #a4161a;
+    --chart-1: #a4161a;
     --chart-2: oklch(0.6 0.12 190);
     --chart-3: oklch(0.55 0.17 250);
     --chart-4: oklch(0.5 0.14 155);
-    --chart-5: oklch(0.55 0.02 80);
+    --chart-5: #b1a7a6;
     --radius: 0.85rem;
-    --sidebar: oklch(0.985 0.003 80);
-    --sidebar-foreground: oklch(0.16 0.012 80);
-    --sidebar-primary: oklch(0.5 0.16 78);
-    --sidebar-primary-foreground: oklch(0.98 0.02 78);
-    --sidebar-accent: oklch(0.94 0.03 80);
-    --sidebar-accent-foreground: oklch(0.32 0.07 80);
-    --sidebar-border: oklch(0.9 0.007 80);
-    --sidebar-ring: oklch(0.5 0.16 78);
+    --sidebar: color-mix(in oklch, #ffffff, #d3d3d3 15%);
+    --sidebar-foreground: #0b090a;
+    --sidebar-primary: #a4161a;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: color-mix(in oklch, #ffffff, #a4161a 8%);
+    --sidebar-accent-foreground: #660708;
+    --sidebar-border: #d3d3d3;
+    --sidebar-ring: #a4161a;
 }
 
 .dark {
-    /* Ink Black / Prussian Blue: a moody navy base under the amber accent
-       (user-specified hex, kept literal rather than approximated to oklch),
-       replacing the near-black warm-neutral base. Derived surfaces use
-       color-mix() off these two anchors rather than hand-picked oklch
-       values, so the whole ramp stays genuinely tied to the two named
-       colors instead of drifting back to an unrelated tint. */
-    --background: #000814;
-    --foreground: oklch(0.95 0.01 250);
-    --card: #001d3d;
-    --card-foreground: oklch(0.95 0.01 250);
-    --popover: #001d3d;
-    --popover-foreground: oklch(0.95 0.01 250);
-    --primary: oklch(0.74 0.15 85);
-    --primary-foreground: oklch(0.18 0.02 85);
-    --secondary: color-mix(in oklch, #001d3d, white 12%);
-    --secondary-foreground: oklch(0.95 0.01 250);
-    --muted: color-mix(in oklch, #001d3d, white 12%);
-    --muted-foreground: oklch(0.68 0.03 250);
-    --accent: color-mix(in oklch, #001d3d, white 20%);
-    --accent-foreground: oklch(0.92 0.02 250);
-    --destructive: oklch(0.704 0.191 22.216);
+    /* Black / Carbon Black / Dark Garnet / Mahogany Red / Strawberry Red /
+       Silver -- same named palette as :root, dark-mode-appropriate members.
+       Derived surfaces use color-mix() off these anchors, same reasoning
+       as the light palette above: a ramp that quietly drifts to an
+       unrelated tint reads as an oversight the moment someone looks. */
+    --background: #0b090a;
+    --foreground: #f5f3f4;
+    --card: #161a1d;
+    --card-foreground: #f5f3f4;
+    --popover: #161a1d;
+    --popover-foreground: #f5f3f4;
+    --primary: #ba181b;
+    --primary-foreground: #ffffff;
+    --secondary: color-mix(in oklch, #161a1d, white 10%);
+    --secondary-foreground: #f5f3f4;
+    --muted: color-mix(in oklch, #161a1d, white 10%);
+    --muted-foreground: color-mix(in oklch, #f5f3f4, #b1a7a6 40%);
+    --accent: color-mix(in oklch, #161a1d, #660708 35%);
+    --accent-foreground: color-mix(in oklch, #f5f3f4, #e5383b 15%);
+    --destructive: #e5383b;
     --success: oklch(0.72 0.15 155);
     --success-foreground: oklch(0.72 0.15 155);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.74 0.15 85);
-    --chart-1: oklch(0.74 0.15 85);
+    --ring: #ba181b;
+    --chart-1: #ba181b;
     --chart-2: oklch(0.7 0.11 190);
     --chart-3: oklch(0.68 0.15 250);
     --chart-4: oklch(0.72 0.15 155);
-    --chart-5: color-mix(in oklch, #001d3d, white 40%);
-    --sidebar: color-mix(in oklch, #000814, #001d3d 45%);
-    --sidebar-foreground: oklch(0.95 0.01 250);
-    --sidebar-primary: oklch(0.74 0.15 85);
-    --sidebar-primary-foreground: oklch(0.18 0.02 85);
-    --sidebar-accent: color-mix(in oklch, #001d3d, white 20%);
-    --sidebar-accent-foreground: oklch(0.92 0.02 250);
+    --chart-5: #b1a7a6;
+    --sidebar: color-mix(in oklch, #0b090a, #161a1d 60%);
+    --sidebar-foreground: #f5f3f4;
+    --sidebar-primary: #ba181b;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: color-mix(in oklch, #161a1d, #660708 35%);
+    --sidebar-accent-foreground: color-mix(in oklch, #f5f3f4, #e5383b 15%);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.74 0.15 85);
+    --sidebar-ring: #ba181b;
 }
 
 @layer base {
