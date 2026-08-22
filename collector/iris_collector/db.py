@@ -83,6 +83,7 @@ def insert_spans(spans: list[dict]) -> None:
 def list_traces(
     limit: int = 50,
     model: str | None = None,
+    agent: str | None = None,
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
@@ -96,6 +97,12 @@ def list_traces(
             "AND s2.name = 'chat' AND s2.attributes->>'gen_ai.request.model' = %s)"
         )
         params.append(model)
+    if agent:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM spans s5 WHERE s5.trace_id = t.trace_id "
+            "AND s5.parent_span_id IS NULL AND s5.attributes->>'gen_ai.agent.name' = %s)"
+        )
+        params.append(agent)
     if since:
         conditions.append("t.first_seen_at >= %s")
         params.append(since)
@@ -120,7 +127,16 @@ def list_traces(
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 f"""
-                SELECT t.trace_id, t.first_seen_at, count(s.span_id) AS span_count
+                SELECT
+                    t.trace_id,
+                    t.first_seen_at,
+                    count(s.span_id) AS span_count,
+                    (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
+                     WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
+                     LIMIT 1) AS agent_name,
+                    (SELECT s4.service_name FROM spans s4
+                     WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
+                     LIMIT 1) AS service_name
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
                 {where_clause}

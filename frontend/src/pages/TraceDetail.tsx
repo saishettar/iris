@@ -18,6 +18,11 @@ function durationMs(span: Span): number | null {
   return new Date(span.end_time).getTime() - new Date(span.start_time).getTime()
 }
 
+function agentName(span: Span | undefined): string | null {
+  const value = span?.attributes["gen_ai.agent.name"]
+  return typeof value === "string" ? value : null
+}
+
 export function TraceDetail() {
   const { traceId } = useParams<{ traceId: string }>()
   const [spans, setSpans] = useState<Span[]>([])
@@ -33,6 +38,7 @@ export function TraceDetail() {
   }, [traceId])
 
   const root = spans.find((s) => s.parent_span_id === null) ?? spans[0]
+  const agent = agentName(root)
 
   return (
     <div className="space-y-6">
@@ -45,7 +51,7 @@ export function TraceDetail() {
 
       <Card className="h-fit border-border/70 bg-card/70 shadow-none">
         <CardHeader>
-          <CardTitle className="text-base">Span detail</CardTitle>
+          <CardTitle className="text-base">{agent ?? "Span detail"}</CardTitle>
           <p className="font-mono text-xs text-muted-foreground">{traceId}</p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -62,6 +68,7 @@ export function TraceDetail() {
               <div className="text-sm font-medium">{root.name}</div>
               <div className="mt-1 text-xs text-muted-foreground">
                 Root span · {root.service_name ?? "unknown service"}
+                {agent && ` · ${agent}`}
               </div>
             </div>
           )}
