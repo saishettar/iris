@@ -3,6 +3,13 @@ CREATE TABLE IF NOT EXISTS traces (
     first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- ALTER ... ADD COLUMN IF NOT EXISTS rather than folding into CREATE TABLE
+-- IF NOT EXISTS above: init_schema() runs on every startup and the latter
+-- is a no-op against a traces table that already exists from before this
+-- column was added, which every real deployment's Postgres volume already
+-- does.
+ALTER TABLE traces ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
+
 CREATE TABLE IF NOT EXISTS spans (
     span_id TEXT PRIMARY KEY,
     trace_id TEXT NOT NULL REFERENCES traces (trace_id),

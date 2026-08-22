@@ -4,7 +4,13 @@ import { Link, useSearchParams } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { getMetricsSummary, listTraces, subscribeToTraceStream, type TraceSummary } from "@/lib/api"
+import {
+  getMetricsSummary,
+  listTags,
+  listTraces,
+  subscribeToTraceStream,
+  type TraceSummary,
+} from "@/lib/api"
 
 // Ported from v0's "Trace explorer" card (part of its combined Traces tab).
 // v0's mock rows also had a latency/cost column, but GET /traces has no
@@ -45,15 +51,17 @@ export function TraceExplorer() {
   const [traces, setTraces] = useState<TraceSummary[]>([])
   const [models, setModels] = useState<string[]>([])
   const [agents, setAgents] = useState<string[]>([])
+  const [tags, setTags] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [model, setModel] = useState("")
   const [agent, setAgent] = useState(() => searchParams.get("agent") ?? "")
+  const [tag, setTag] = useState("")
   const [rangeHours, setRangeHours] = useState<number | null>(null)
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [liveArrivedIds, setLiveArrivedIds] = useState<Set<string>>(new Set())
-  const serverFiltersActive = Boolean(model || agent || rangeHours || errorsOnly)
+  const serverFiltersActive = Boolean(model || agent || tag || rangeHours || errorsOnly)
 
   useEffect(() => {
     getMetricsSummary()
@@ -69,6 +77,9 @@ export function TraceExplorer() {
         setAgents(Array.from(names).sort())
       })
       .catch(() => {})
+    listTags()
+      .then((rows) => setTags(rows.map((r) => r.tag)))
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -77,13 +88,14 @@ export function TraceExplorer() {
     listTraces(50, {
       model: model || undefined,
       agent: agent || undefined,
+      tag: tag || undefined,
       since,
       hasError: errorsOnly ? true : undefined,
     })
       .then(setTraces)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [model, agent, rangeHours, errorsOnly])
+  }, [model, agent, tag, rangeHours, errorsOnly])
 
   useEffect(() => {
     if (serverFiltersActive) return
@@ -165,6 +177,19 @@ export function TraceExplorer() {
             </select>
 
             <select
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+              className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All tags</option>
+              {tags.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+
+            <select
               value={rangeHours ?? ""}
               onChange={(e) => setRangeHours(e.target.value ? Number(e.target.value) : null)}
               className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
@@ -195,7 +220,7 @@ export function TraceExplorer() {
           )}
           {!loading && !error && filtered.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {query || model || agent || rangeHours || errorsOnly
+              {query || serverFiltersActive
                 ? "No traces match these filters."
                 : "No traces yet -- instrument a call path with iris_otel and check back."}
             </p>
@@ -214,8 +239,16 @@ export function TraceExplorer() {
                   <div className="truncate text-sm font-medium">
                     {trace.agent_name ?? trace.service_name ?? "unnamed agent"}
                   </div>
-                  <div className="mt-0.5 font-mono text-xs text-muted-foreground">
-                    {trace.trace_id} <span className="mx-1.5 text-border">·</span> {timeAgo(trace.first_seen_at)}
+                  <div className="mt-0.5 flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                    <span className="truncate">
+                      {trace.trace_id} <span className="mx-1.5 text-border">·</span>{" "}
+                      {timeAgo(trace.first_seen_at)}
+                    </span>
+                    {trace.tags.map((t) => (
+                      <Badge key={t} variant="outline" className="shrink-0 font-sans text-[10px]">
+                        {t}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
                 <Badge variant="outline" className="ml-3 shrink-0 font-mono">
