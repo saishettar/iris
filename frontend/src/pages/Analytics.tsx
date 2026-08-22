@@ -1,12 +1,26 @@
 import { useEffect, useState } from "react"
 import { Activity, Gauge } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getMetricsSummary, type MetricsSummary } from "@/lib/api"
+import {
+  getMetricsSummary,
+  getOtelMetricsSummary,
+  type MetricsSummary,
+  type OtelMetricsSummary,
+} from "@/lib/api"
 
 // Wired to GET /metrics/summary. Cost-by-model comes from the collector's
 // pricing.py table, which is empty by default -- a model without a real,
 // verified entry there shows as "not priced" rather than a guessed number.
+//
+// The charts above the "OTel Metrics" heading are all computed by custom SQL
+// over span data. The section below it is a genuinely separate signal: real
+// gen_ai.client.operation.duration/token.usage Histogram instruments,
+// exported over OTLP and ingested via POST /v1/metrics into their own
+// metric_points table (GET /metrics/otel-summary). Kept visually distinct
+// rather than merged into the cards above, since conflating "derived from
+// spans" and "a real second OTel signal" would misrepresent which is which.
 
 function Stat({
   label,
@@ -46,16 +60,29 @@ function formatCost(usd: number | null): string {
   return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`
 }
 
+function formatHour(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+}
+
 export function Analytics() {
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+
+  const [otel, setOtel] = useState<OtelMetricsSummary | null>(null)
+  const [otelError, setOtelError] = useState<string | null>(null)
+  const [otelLoading, setOtelLoading] = useState(true)
 
   useEffect(() => {
     getMetricsSummary()
       .then(setMetrics)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
+
+    getOtelMetricsSummary()
+      .then(setOtel)
+      .catch((err: Error) => setOtelError(err.message))
+      .finally(() => setOtelLoading(false))
   }, [])
 
   const traceCount = metrics?.trace_volume.reduce((sum, d) => sum + d.count, 0) ?? 0
@@ -64,6 +91,7 @@ export function Analytics() {
   const maxDailyP50 = Math.max(1, ...(metrics?.latency_by_day.map((d) => d.p50) ?? [1]))
   const percentiles = metrics?.latency_percentiles ?? { p50: null, p95: null, p99: null }
   const maxPercentile = Math.max(1, percentiles.p50 ?? 0, percentiles.p95 ?? 0, percentiles.p99 ?? 0)
+  const maxHourlyOps = Math.max(1, ...(otel?.operations_by_hour.map((b) => b.operation_count) ?? [1]))
 
   return (
     <div className="space-y-6">
@@ -240,6 +268,95 @@ export function Analytics() {
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">OTel Metrics</h2>
+              <Badge variant="outline">gen_ai.client.* histograms</Badge>
+            </div>
+
+            {otelLoading && <p className="text-sm text-muted-foreground">Loading OTel metrics...</p>}
+            {otelError && (
+              <p className="text-sm text-destructive">
+                Failed to load OTel metrics from the collector: {otelError}
+              </p>
+            )}
+
+            {otel && (
+              <div className="grid gap-6 xl:grid-cols-2">
+                <div className="grid gap-4 xl:col-span-2 md:grid-cols-2">
+                  <Stat
+                    label="Operations recorded"
+                    value={String(otel.operation_count)}
+                    icon={Activity}
+                  />
+                  <Stat label="Avg duration" value={formatMs((otel.avg_duration_s ?? 0) * 1000)} icon={Gauge} />
+                </div>
+
+                <Card className="border-border/70 bg-card/70 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Operations per hour</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      From gen_ai.client.operation.duration data points, last 24h
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    {otel.operations_by_hour.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No OTel metric points yet -- instrument a call path and check back.
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex h-40 items-end gap-2 border-b border-border/60 px-2 pt-5">
+                          {otel.operations_by_hour.map((b) => (
+                            <div
+                              key={b.bucket}
+                              className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                              style={{ height: `${(b.operation_count / maxHourlyOps) * 100}%` }}
+                              title={`${formatHour(b.bucket)}: ${b.operation_count}`}
+                            />
+                          ))}
+                        </div>
+                        <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                          <span>{formatHour(otel.operations_by_hour[0].bucket)}</span>
+                          <span>
+                            {formatHour(otel.operations_by_hour[otel.operations_by_hour.length - 1].bucket)}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/70 bg-card/70 shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-base">Token usage</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      From gen_ai.client.token.usage data points, by model and type
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {otel.token_usage.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No token usage recorded yet.</p>
+                    ) : (
+                      otel.token_usage.map((row) => (
+                        <div
+                          key={`${row.model}-${row.token_type}`}
+                          className="flex items-center justify-between border-b border-border/50 pb-3 last:border-0"
+                        >
+                          <div>
+                            <span className="text-sm font-medium">{row.model}</span>
+                            <span className="ml-2 text-xs text-muted-foreground">{row.token_type}</span>
+                          </div>
+                          <span className="font-mono text-sm">{row.total_tokens.toLocaleString()}</span>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </>
       )}

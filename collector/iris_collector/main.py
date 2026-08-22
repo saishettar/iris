@@ -80,6 +80,11 @@ def list_metric_points(limit: int = 100):
     return db.list_metric_points(limit=limit)
 
 
+@app.get("/metrics/otel-summary")
+def get_otel_metrics_summary(hours: int = 24):
+    return db.get_otel_metrics_summary(hours=hours)
+
+
 @app.get("/traces")
 def list_traces(
     limit: int = 50,

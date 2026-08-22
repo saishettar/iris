@@ -115,3 +115,25 @@ export function getEvalRun(runId: string): Promise<EvalResult[]> {
 export function getMetricsSummary(days = 14): Promise<MetricsSummary> {
   return apiFetch<MetricsSummary>(`/metrics/summary?days=${days}`)
 }
+
+export interface OtelTokenUsage {
+  model: string
+  token_type: string
+  total_tokens: number
+}
+
+export interface OtelOperationsByHour {
+  bucket: string
+  operation_count: number
+}
+
+export interface OtelMetricsSummary {
+  operation_count: number
+  avg_duration_s: number | null
+  token_usage: OtelTokenUsage[]
+  operations_by_hour: OtelOperationsByHour[]
+}
+
+export function getOtelMetricsSummary(hours = 24): Promise<OtelMetricsSummary> {
+  return apiFetch<OtelMetricsSummary>(`/metrics/otel-summary?hours=${hours}`)
+}
