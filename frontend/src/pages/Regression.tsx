@@ -22,7 +22,7 @@ function Stat({
   icon: typeof Activity
 }) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-none">
+    <Card className="bg-card/80">
       <CardContent className="p-5">
         <div className="mb-5 flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -55,7 +55,7 @@ function RunSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+        className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
       >
         {allowNone && <option value="">(none)</option>}
         {options.map((run) => (
@@ -197,7 +197,7 @@ export function Regression() {
           </div>
 
           {trendRuns.length > 1 && (
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Pass rate over time</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -228,7 +228,7 @@ export function Regression() {
             </Card>
           )}
 
-          <Card className="border-border/70 bg-card/70 shadow-none">
+          <Card className="bg-card/80">
             <CardHeader>
               <CardTitle className="text-base">Regression comparison</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">

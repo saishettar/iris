@@ -95,7 +95,7 @@ export function TraceDetail() {
         <ChevronLeft className="size-4" /> Back to traces
       </Link>
 
-      <Card className="border-border/70 bg-card/70 shadow-none">
+      <Card className="bg-card/80">
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div>
             <CardTitle className="text-base">{agent ?? root?.name ?? "Trace detail"}</CardTitle>
@@ -120,7 +120,7 @@ export function TraceDetail() {
           )}
 
           {rows.length > 0 && (
-            <div className="overflow-hidden rounded-md border border-border">
+            <div className="overflow-hidden rounded-xl border border-border">
               <div className="grid grid-cols-[minmax(160px,280px)_1fr] border-b border-border bg-muted/50 px-3 py-2">
                 <span className="text-xs font-medium text-muted-foreground">Span</span>
                 <div className="flex items-center gap-2">

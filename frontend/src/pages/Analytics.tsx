@@ -32,7 +32,7 @@ function Stat({
   icon: typeof Activity
 }) {
   return (
-    <Card className="border-border/70 bg-card/70 shadow-none">
+    <Card className="bg-card/80">
       <CardContent className="p-5">
         <div className="mb-5 flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
@@ -119,7 +119,7 @@ export function Analytics() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Trace volume</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Traces per day, last 14 days</p>
@@ -150,7 +150,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Model usage</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Chat-span share by model</p>
@@ -177,7 +177,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Latency percentiles</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Across all chat spans</p>
@@ -202,7 +202,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Latency over time</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">P50 per day, last 14 days</p>
@@ -233,7 +233,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="border-border/70 bg-card/70 shadow-none">
+            <Card className="bg-card/80">
               <CardHeader>
                 <CardTitle className="text-base">Cost by model</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -291,7 +291,7 @@ export function Analytics() {
                   <Stat label="Avg duration" value={formatMs((otel.avg_duration_s ?? 0) * 1000)} icon={Gauge} />
                 </div>
 
-                <Card className="border-border/70 bg-card/70 shadow-none">
+                <Card className="bg-card/80">
                   <CardHeader>
                     <CardTitle className="text-base">Operations per hour</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -326,7 +326,7 @@ export function Analytics() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-border/70 bg-card/70 shadow-none">
+                <Card className="bg-card/80">
                   <CardHeader>
                     <CardTitle className="text-base">Token usage</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">
