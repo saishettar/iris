@@ -43,6 +43,28 @@ export interface EvalResult {
   assertion_results: AssertionResult[]
 }
 
+export interface TraceVolumeDay {
+  day: string
+  count: number
+}
+
+export interface ModelUsage {
+  model: string
+  count: number
+}
+
+export interface LatencyPercentiles {
+  p50: number | null
+  p95: number | null
+  p99: number | null
+}
+
+export interface MetricsSummary {
+  trace_volume: TraceVolumeDay[]
+  model_usage: ModelUsage[]
+  latency_percentiles: LatencyPercentiles
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
 
 async function apiFetch<T>(path: string): Promise<T> {
@@ -67,4 +89,8 @@ export function listEvalRuns(limit = 50): Promise<EvalRunSummary[]> {
 
 export function getEvalRun(runId: string): Promise<EvalResult[]> {
   return apiFetch<EvalResult[]>(`/eval-runs/${encodeURIComponent(runId)}`)
+}
+
+export function getMetricsSummary(days = 14): Promise<MetricsSummary> {
+  return apiFetch<MetricsSummary>(`/metrics/summary?days=${days}`)
 }

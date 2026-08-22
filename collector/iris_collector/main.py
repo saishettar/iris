@@ -91,3 +91,8 @@ def list_eval_runs(limit: int = 50):
 @app.get("/eval-runs/{run_id}")
 def get_eval_run(run_id: str):
     return db.get_eval_run(run_id)
+
+
+@app.get("/metrics/summary")
+def get_metrics_summary(days: int = 14):
+    return db.get_metrics_summary(days=days)

@@ -1,24 +1,20 @@
-import { Activity, BarChart3, Gauge, Workflow } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Activity, Gauge } from "lucide-react"
 
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getMetricsSummary, type MetricsSummary } from "@/lib/api"
 
-// TODO: everything below is mock data, ported as-is from v0 (merging its
-// Overview tab's stats/charts with its Analytics tab's charts -- both were
-// "aggregate metrics" content, just split across two tabs in the original).
-// Wire to real data once the collector exposes an aggregate-metrics endpoint:
-// GET /traces today only returns per-trace span counts, not latency/cost/error
-// rollups or time-series buckets. Do not guess at that endpoint's shape here.
+// Wired to GET /metrics/summary. No "cost by model" card here -- there's no
+// pricing table backing gen_ai.usage.input_tokens/output_tokens, so cost
+// isn't faked; that's a real gap, not an oversight (see the card below).
 
 function Stat({
   label,
   value,
-  detail,
   icon: Icon,
 }: {
   label: string
   value: string
-  detail: string
   icon: typeof Activity
 }) {
   return (
@@ -30,146 +26,168 @@ function Stat({
           </span>
           <Icon className="size-4 text-primary" />
         </div>
-        <div className="flex items-end justify-between gap-2">
-          <span className="font-mono text-2xl font-semibold tracking-tight">{value}</span>
-          <span className="text-xs text-primary">{detail}</span>
-        </div>
+        <span className="font-mono text-2xl font-semibold tracking-tight">{value}</span>
       </CardContent>
     </Card>
   )
 }
 
-const TRACE_VOLUME = [
-  34, 48, 42, 60, 55, 72, 68, 82, 74, 88, 79, 96, 82, 90, 68, 77, 58, 64, 82, 71, 88, 97, 73, 84,
-]
+function formatMs(ms: number | null): string {
+  if (ms === null) return "--"
+  return ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`
+}
 
-const MODEL_USAGE: [string, string, string][] = [
-  ["GPT-4o", "48%", "bg-primary"],
-  ["Claude 3.5 Sonnet", "29%", "bg-chart-2"],
-  ["GPT-4o mini", "16%", "bg-chart-3"],
-  ["Gemini 1.5 Pro", "7%", "bg-chart-4"],
-]
-
-const LATENCY_SERIES = [38, 44, 52, 46, 63, 57, 72, 68, 80, 75, 91, 84]
-
-const COST_BY_MODEL: [string, string, string][] = [
-  ["GPT-4o", "$612.40", "48%"],
-  ["Claude 3.5 Sonnet", "$371.20", "29%"],
-  ["Gemini 1.5 Pro", "$178.90", "14%"],
-  ["Other", "$121.50", "9%"],
-]
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+}
 
 export function Analytics() {
+  const [metrics, setMetrics] = useState<MetricsSummary | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getMetricsSummary()
+      .then(setMetrics)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const traceCount = metrics?.trace_volume.reduce((sum, d) => sum + d.count, 0) ?? 0
+  const maxVolume = Math.max(1, ...(metrics?.trace_volume.map((d) => d.count) ?? [1]))
+  const modelTotal = metrics?.model_usage.reduce((sum, m) => sum + m.count, 0) ?? 0
+  const percentiles = metrics?.latency_percentiles ?? { p50: null, p95: null, p99: null }
+  const maxPercentile = Math.max(1, percentiles.p50 ?? 0, percentiles.p95 ?? 0, percentiles.p99 ?? 0)
+
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
-            Iris workspace
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Analytics</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Explore aggregate cost, latency, and usage.
-          </p>
-        </div>
-        <Badge variant="outline">Mock data</Badge>
+      <div>
+        <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
+          Iris workspace
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">Analytics</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Aggregate volume, latency, and model usage from real span data.
+        </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Traces today" value="18,429" detail="+12.4%" icon={Activity} />
-        <Stat label="Avg. latency" value="1.84s" detail="-8.2%" icon={Gauge} />
-        <Stat label="Total cost" value="$284.12" detail="+4.1%" icon={BarChart3} />
-        <Stat label="Error rate" value="0.42%" detail="-0.18%" icon={Workflow} />
-      </div>
+      {loading && <p className="text-sm text-muted-foreground">Loading metrics...</p>}
+      {error && (
+        <p className="text-sm text-destructive">
+          Failed to load metrics from the collector: {error}
+        </p>
+      )}
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Card className="border-border/70 bg-card/70 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Trace volume</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Requests across all environments</p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-56 items-end gap-2 border-b border-border/60 px-2 pt-5">
-              {TRACE_VOLUME.map((height, index) => (
-                <div
-                  key={index}
-                  className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
-                  style={{ height: `${height}%` }}
-                />
-              ))}
-            </div>
-            <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-              <span>00:00</span>
-              <span>06:00</span>
-              <span>12:00</span>
-              <span>18:00</span>
-              <span>Now</span>
-            </div>
-          </CardContent>
-        </Card>
+      {metrics && (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Stat label="Traces (14d)" value={String(traceCount)} icon={Activity} />
+            <Stat label="P50 latency" value={formatMs(percentiles.p50)} icon={Gauge} />
+            <Stat label="P95 latency" value={formatMs(percentiles.p95)} icon={Gauge} />
+            <Stat label="P99 latency" value={formatMs(percentiles.p99)} icon={Gauge} />
+          </div>
 
-        <Card className="border-border/70 bg-card/70 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Model usage</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Token share by model</p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {MODEL_USAGE.map(([name, percent, color]) => (
-              <div key={name}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span>{name}</span>
-                  <span className="font-mono text-muted-foreground">{percent}</span>
-                </div>
-                <div className="h-2 bg-muted">
-                  <div className={`h-full ${color}`} style={{ width: percent }} />
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+          <div className="grid gap-6 xl:grid-cols-2">
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Trace volume</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Traces per day, last 14 days</p>
+              </CardHeader>
+              <CardContent>
+                {metrics.trace_volume.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No traces yet -- instrument a call path and check back.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex h-56 items-end gap-2 border-b border-border/60 px-2 pt-5">
+                      {metrics.trace_volume.map((d) => (
+                        <div
+                          key={d.day}
+                          className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          style={{ height: `${(d.count / maxVolume) * 100}%` }}
+                          title={`${formatDay(d.day)}: ${d.count}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                      <span>{formatDay(metrics.trace_volume[0].day)}</span>
+                      <span>{formatDay(metrics.trace_volume[metrics.trace_volume.length - 1].day)}</span>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-        <Card className="border-border/70 bg-card/70 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Latency distribution</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">P50, P95, and P99 by day</p>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-56 items-end gap-3 border-b border-border/60">
-              {LATENCY_SERIES.map((height, index) => (
-                <div key={index} className="flex h-full flex-1 items-end gap-1">
-                  <div className="w-1/2 bg-primary/60" style={{ height: `${height}%` }} />
-                  <div className="w-1/2 bg-chart-3/70" style={{ height: `${Math.max(20, height - 18)}%` }} />
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-              <span>Aug 10</span>
-              <span>Aug 21</span>
-            </div>
-          </CardContent>
-        </Card>
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Model usage</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Chat-span share by model</p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                {metrics.model_usage.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No chat spans yet.</p>
+                ) : (
+                  metrics.model_usage.map((m) => {
+                    const percent = modelTotal ? Math.round((m.count / modelTotal) * 100) : 0
+                    return (
+                      <div key={m.model}>
+                        <div className="mb-2 flex justify-between text-sm">
+                          <span>{m.model}</span>
+                          <span className="font-mono text-muted-foreground">{percent}%</span>
+                        </div>
+                        <div className="h-2 bg-muted">
+                          <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </CardContent>
+            </Card>
 
-        <Card className="border-border/70 bg-card/70 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Cost by model</CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">Monthly spend allocation</p>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {COST_BY_MODEL.map(([name, cost, share]) => (
-              <div
-                key={name}
-                className="flex items-center justify-between border-b border-border/50 pb-4 last:border-0"
-              >
-                <div>
-                  <div className="text-sm font-medium">{name}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">{share} of total</div>
-                </div>
-                <span className="font-mono text-sm">{cost}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Latency percentiles</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Across all chat spans</p>
+              </CardHeader>
+              <CardContent>
+                {percentiles.p50 === null ? (
+                  <p className="text-sm text-muted-foreground">No completed chat spans yet.</p>
+                ) : (
+                  <div className="flex h-56 items-end gap-6 border-b border-border/60 px-4 pt-5">
+                    {(["p50", "p95", "p99"] as const).map((key) => (
+                      <div key={key} className="flex flex-1 flex-col items-center gap-2">
+                        <div
+                          className="w-full bg-primary/75"
+                          style={{ height: `${((percentiles[key] ?? 0) / maxPercentile) * 180}px` }}
+                        />
+                        <span className="text-xs uppercase text-muted-foreground">{key}</span>
+                        <span className="font-mono text-xs">{formatMs(percentiles[key])}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Cost by model</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">Monthly spend allocation</p>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Not tracked yet -- token counts are captured per span
+                  (<code>gen_ai.usage.*</code>), but there's no model pricing
+                  table to convert them to cost. A real number here needs that
+                  table, not a guess.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }
