@@ -1,69 +1,185 @@
 # Iris
 
-Self-hosted, OpenTelemetry-native observability platform for LLM/agent pipelines.
+Self-hosted, OpenTelemetry-native observability platform for LLM/agent pipelines: trace calls, score them automatically, and catch regressions when a prompt or model changes.
 
-Full project scope, milestones, and design rationale: [`observability_platform_scope.md`](observability_platform_scope.md).
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![TypeScript](https://img.shields.io/badge/typescript-react-blue.svg)
 
-## Layout
-- `sdk/` — Python instrumentation SDK (OpenTelemetry-based, emits `gen_ai.*` spans)
-- `collector/` — OTLP receiver / collector config + storage layer
-- `eval/` — YAML-driven eval/regression runner (promptfoo-shaped config + assertions)
-- `frontend/` — React dashboard
-- `docker-compose.yml` — one-command self-hosted stack
+---
 
-## Design decisions
+## Demo
 
-**Collector:** hand-rolled OTLP/HTTP receiver (FastAPI, parsing the real
-`ExportTraceServiceRequest` protobuf via `opentelemetry-proto`) rather than
-running the stock OpenTelemetry Collector image. Both are legitimate — this
-one puts more of the protocol-level work in our own code, which fits Iris's
-OTel-native differentiator better than wrapping an existing binary would.
+Trace explorer and analytics, running against a real local `docker compose up` stack with real spans flowing through it:
 
-**Frontend:** Vite + React + React Router + shadcn/ui (Radix primitives,
-Tailwind v4), with dashboard views authored in v0 and adapted into the app
-rather than hand-coded from scratch.
+![Analytics view](docs/screenshots/analytics.jpg)
 
-## Status
+Regression view diffing two real eval runs — a genuine pass → fail catch, not staged copy:
 
-**Core system:** SDK, collector (OTLP ingest + Postgres storage for
-traces/spans and eval_runs/eval_results), and the eval/scoring layer are all
-built and have been run against a real `docker compose up` stack (Postgres +
-collector), not just mocked in isolation -- real OTLP spans, a real eval
-run, and the `/metrics/summary` aggregates all stored and read back
-correctly, with the dashboard showing genuine data in a browser. That live
-pass caught a real bug no mocked test could: the collector had no CORS
-headers, so curl/TestClient saw a fine response while a browser on the
-dashboard's own origin got silently blocked -- fixed via `CORSMiddleware`.
+![Regression diff view](docs/screenshots/regression.jpg)
 
-**Dashboard:** all four views (trace explorer `/`, trace detail
-`/traces/:traceId`, analytics `/analytics`, regression `/regression`) are
-built from a v0-generated design and fetch from the real collector API.
-Analytics includes cost-by-model, computed from real captured token counts
-against a pricing table that's empty by default (no fabricated numbers --
-fill in real pricing per model to enable it). Regression supports a real
-baseline-vs-candidate diff (by test description, so added/removed cases
-show up correctly) once two comparable runs exist, falling back to a
-single-run view otherwise.
+More screenshots (trace explorer, trace/span detail) in [`docs/screenshots/`](docs/screenshots/).
 
-**Eval layer:** YAML suites, deterministic assertions
-(`contains`/`regex`/`latency`), and an `llm-rubric` assertion that grades
-output against a rubric via Claude, stored for real via `POST /eval-runs`.
-Validated against a fixture target and against nyu-rag's real
-`generate_answer` path live -- one run caught a real brittle-regex failure
-(the model's phrasing varied between calls) that got replaced with an
-`llm-rubric` assertion instead. A CI workflow (in nyu-rag) runs this suite
-on PRs touching the prompt and posts results as a comment, failing the
-check on regression.
+## Why
 
-**Dogfooding:** both intended target apps are instrumented with the SDK --
-nyu-rag (`generate_answer`, single call) and undercut/f1-race-strategy-agent
-(`decide_llm`, a multi-round Claude tool-use loop). Instrumenting the second
-one surfaced two real SDK gaps that got fixed: `trace_llm_call` didn't
-support `async` target functions, and `system_instructions` only captured a
-static prompt, not one built per call from request state.
+Every LLM app eventually needs the same three things: know what your pipeline actually did (tracing), know whether its output is any good (eval), and know when a prompt or model change made it worse (regression detection). Most tools that do this either invented their own telemetry schema before OpenTelemetry's GenAI conventions existed, or bolted OTel support on after the fact. Iris is built OTel-native from the start — small, but a real, defensible differentiator over prior art like Langfuse.
 
-**Known gaps, left honest rather than faked:** no auth on the collector or
-dashboard (fine for a self-hosted personal tool, worth flagging if this
-ever runs somewhere shared); the collector rebuilds its image on every
-`docker compose up` rather than using a pinned/pushed one, which only
-matters for a real deploy, not local dev.
+## Features
+
+- Python instrumentation SDK (`iris_otel`) emitting real `gen_ai.*` spans per the OpenTelemetry GenAI semantic conventions — `chat`, `execute_tool`, and `invoke_agent` span kinds, both sync and async target functions
+- Prompt/response content capture is opt-in and off by default (`IRIS_CAPTURE_CONTENT`), matching the convention's privacy stance
+- Hand-rolled OTLP/HTTP collector (FastAPI) that parses the real `ExportTraceServiceRequest` protobuf directly via `opentelemetry-proto`, rather than wrapping the stock OpenTelemetry Collector binary
+- Postgres-backed storage for traces/spans and eval runs, with aggregate queries for trace volume, model usage, and real p50/p95/p99 latency percentiles computed from span timestamps
+- Cost-by-model computed from real captured token counts against an editable pricing table — empty by default rather than showing a fabricated number
+- YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`) and an `llm-rubric` assertion that grades output against a plain-language rubric via Claude
+- Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows)
+- A GitHub Action that runs the eval suite on every PR touching the prompt and posts results as a comment, failing the check on regression
+- React dashboard (trace explorer, trace/span detail, analytics, regression) wired entirely to the real collector API — no mock data left in the shipped app
+
+## Tech Stack
+
+**SDK / collector / eval:** Python 3.12, OpenTelemetry SDK, FastAPI, psycopg2, Pydantic, PyYAML, Anthropic SDK
+**Storage:** PostgreSQL 16
+**Frontend:** React 19, TypeScript, Vite, React Router, shadcn/ui (Radix primitives), Tailwind CSS v4
+**Infra:** Docker Compose
+
+## Installation
+
+```bash
+git clone https://github.com/saishettar/iris.git
+cd iris
+
+# Backend: Postgres + collector
+docker compose up -d
+
+# Frontend
+cd frontend
+npm install
+npm run dev   # http://localhost:5173
+```
+
+The collector listens on `http://localhost:4318` (the OTLP default). The frontend picks that up automatically in dev; override with `VITE_API_BASE_URL` if you're pointing it somewhere else (see `frontend/.env.example`).
+
+To also run eval suites with `llm-rubric` assertions, set `ANTHROPIC_API_KEY` in your environment.
+
+## Usage
+
+**Instrument an LLM call** (works on sync or async functions):
+
+```python
+from iris_otel import observe, trace_llm_call
+from iris_otel.presets import anthropic_usage, anthropic_finish_reason
+
+@trace_llm_call(model="claude-sonnet-5", extract_usage=anthropic_usage, extract_finish_reasons=anthropic_finish_reason)
+def call_claude(**kwargs):
+    return client.messages.create(**kwargs)
+
+with observe("invoke_agent", **{"gen_ai.agent.name": "my-agent"}):
+    call_claude(messages=[...])
+```
+
+Spans export to the collector automatically (`IRIS_OTLP_ENDPOINT`, defaults to `http://localhost:4318/v1/traces`).
+
+**Run an eval suite:**
+
+```bash
+cd eval/examples
+iris-eval fixture_suite.yaml --no-judge
+```
+
+```
+[PASS] cites the course code it recommends (0ms)
+    ok  regex: expected output to match /\[CS-GY 6763\]/
+    ok  contains: expected output to contain 'Algorithms'
+    ok  latency: 0ms vs threshold 1000ms
+
+1/1 passed
+```
+
+Add `--out results.json --version-tag <label>` and `POST` the file to `/eval-runs` to store it and see it in the Regression dashboard view.
+
+## Project Structure
+
+```
+├── sdk/
+│   └── iris_otel/            # Instrumentation SDK: observe(), trace_llm_call(), Anthropic presets
+├── collector/
+│   └── iris_collector/
+│       ├── main.py           # FastAPI app: OTLP ingest + query endpoints
+│       ├── otlp.py           # OTLP protobuf -> row dicts
+│       ├── db.py             # Postgres schema, queries, aggregate metrics
+│       └── pricing.py        # Per-model $/M-token table (empty by default)
+├── eval/
+│   └── iris_eval/            # YAML suite loader, assertions, LLM-judge, CLI
+├── frontend/
+│   └── src/
+│       ├── pages/            # TraceExplorer, TraceDetail, Analytics, Regression
+│       ├── components/       # Layout shell + shadcn/ui primitives
+│       └── lib/api.ts        # Typed fetch client for the collector
+├── docs/screenshots/
+├── docker-compose.yml        # Postgres + collector, one command
+└── observability_platform_scope.md   # Original planning doc (direction, not a spec)
+```
+
+## Dogfooding results
+
+Iris is instrumented into two other real projects, not synthetic test traffic:
+
+- **[nyu-rag](https://github.com/saishettar/nyu-rag)** — a single-call RAG answer generator. First real eval run against it caught a genuine bug in the eval suite itself: a regex assertion failed on a correct answer because the model's phrasing varied between calls. Replaced with an `llm-rubric` assertion; both cases pass consistently now.
+- **[undercut](https://github.com/saishettar/undercut)** (formerly f1-race-strategy-agent) — a multi-round Claude tool-use agent making live pit-strategy calls. Instrumenting this (a materially different shape than nyu-rag's single call) surfaced two real gaps in the SDK: `trace_llm_call` didn't support `async` target functions, and system-prompt capture only worked for a static, decoration-time string, not one built per call from request state. Both fixed before this integration shipped.
+
+Running the real stack locally also caught a bug no mocked test could: the collector had no CORS headers, so `curl`/`TestClient` saw a fine response while an actual browser on the dashboard's own origin got silently blocked. Fixed with `CORSMiddleware`.
+
+## Architecture
+
+```
+iris_otel SDK                    collector (FastAPI)              Postgres
+  │                                  │
+  │ @trace_llm_call / observe()      │
+  │ chat / execute_tool /            │
+  │ invoke_agent spans               │
+  ▼                                  │
+  OTLP/HTTP ───────────────────────▶ │ POST /v1/traces
+                                     │ (real protobuf parsing,       traces
+                                     │  no OTel Collector binary) ─▶ spans
+                                     │
+eval/ (iris-eval CLI)               │
+  YAML suite → assertions           │
+  (contains/regex/latency/          │
+   llm-rubric via Claude)           │
+  --out results.json ─────────────▶ │ POST /eval-runs             eval_runs
+                                     │ ───────────────────────────▶ eval_results
+                                     │
+                                     │ GET /traces, /eval-runs,
+                                     │     /metrics/summary
+                                     ▼
+                              React dashboard
+                        (trace explorer/detail,
+                          analytics, regression)
+```
+
+**Prior art, and where Iris sits relative to it:** this isn't a novel category. [Langfuse](https://langfuse.com) is the closest direct analog — SDK-based tracing, nested spans, built-in evals — but added OpenTelemetry support after the fact rather than being built on it. [promptfoo](https://www.promptfoo.dev) is the real prior art for "CI for prompts": YAML test cases, deterministic + model-graded assertions, a GitHub Action that fails a PR on regression — Iris's eval layer follows its config/assertion shape directly rather than inventing one. The [OpenTelemetry GenAI Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) are the genuinely current, less-settled piece: recent enough that several established tools (Langfuse included) added them on top of an existing schema instead of starting from them. Being OTel-native from day one — real `gen_ai.*` spans over real OTLP, not an invented JSON shape — is the one small, explainable differentiator this project actually claims.
+
+## Roadmap / Limitations
+
+**Known gaps against the original plan**, kept honest rather than hidden:
+- No OTel *Metrics* signal (histograms) — dashboard aggregates are custom SQL over span data, not real `gen_ai.client.operation.duration`/`token.usage` metric instruments
+- Eval assertions are missing a `cost` threshold type and an `answer-relevance` equivalent (only `contains`/`regex`/`latency`/`llm-rubric` exist)
+- Eval runs are standalone re-invocations of the target function, not scoring of live traffic already flowing through the collector — closer to how promptfoo actually works than the platform-integrated version originally planned
+- Trace explorer filters by trace ID only — no filtering by model, time range, eval score, or error status yet
+- No eval-score-trend chart; cost/latency in Analytics are current snapshots, not plotted over time
+- `iris-eval` doesn't diff against a stored baseline itself — that logic lives in the dashboard, not the CLI
+- `undercut` is SDK-instrumented but has no eval suite yet, so no CI gate there
+- `docker compose up` covers Postgres + collector; the frontend still needs a separate `npm install && npm run dev`
+
+**Stretch goals, not started:** multi-provider support beyond Claude, cost-spike alerting, OpenTelemetry Collector export/import interop.
+
+## License
+
+[MIT](LICENSE)
+
+## Acknowledgments
+
+- [Langfuse](https://langfuse.com) and [promptfoo](https://www.promptfoo.dev), whose patterns this project follows rather than reinvents
+- The [OpenTelemetry GenAI Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) working group
+- Dogfooded against [nyu-rag](https://github.com/saishettar/nyu-rag) and [undercut](https://github.com/saishettar/undercut), two other real projects of mine
