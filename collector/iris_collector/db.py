@@ -260,6 +260,30 @@ def get_trace_tags(trace_id: str) -> list[str]:
             return row[0] if row else []
 
 
+def add_annotation(trace_id: str, verdict: str, note: str | None) -> dict:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                INSERT INTO annotations (trace_id, verdict, note)
+                VALUES (%s, %s, %s)
+                RETURNING id, trace_id, verdict, note, created_at
+                """,
+                (trace_id, verdict, note),
+            )
+            return cur.fetchone()
+
+
+def list_annotations(trace_id: str) -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM annotations WHERE trace_id = %s ORDER BY created_at DESC",
+                (trace_id,),
+            )
+            return cur.fetchall()
+
+
 def get_trace_spans(trace_id: str) -> list[dict]:
     with _connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
