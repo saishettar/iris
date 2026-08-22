@@ -88,6 +88,20 @@ track, never overlaid on the bar itself — an earlier version overlaid the labe
 unreadable low-contrast text on wide bars; the fixed column is the fix, not a font-weight
 tweak.
 
+## Trace graph view
+
+`TraceGraph.tsx` (`@xyflow/react`) adds a second view on Trace Detail, toggled against
+the waterfall via a pill control. OTel spans form a strict tree (one `parent_span_id`
+each), never an arbitrary DAG, so this lays out a real call tree -- a hand-rolled
+top-down layout (children's x is the average of their own children's x, y from depth),
+not a general graph layout library. The waterfall answers "where did the time go";
+this answers "what called what," which matters more on branchier, multi-round
+tool-use traces where depth-indentation alone gets hard to scan. Custom `SpanNode`
+components reuse the same card language (`rounded-xl`, `shadow-lg shadow-black/20`,
+primary/destructive status dot) rather than React Flow's default node styling;
+`colorMode` follows the app's own dark/light toggle via a `MutationObserver` on
+`document.documentElement`'s class, so it isn't a second, disconnected theme.
+
 ## Known pattern: single-day chart data
 
 The daily bar charts (trace volume, latency-over-time, operations-per-hour) cap each bar at
