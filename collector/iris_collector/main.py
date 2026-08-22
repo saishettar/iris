@@ -10,10 +10,10 @@ import json
 import logging
 import os
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
     ExportMetricsServiceRequest,
     ExportMetricsServiceResponse,
@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from . import db
 from .alerts import alert_loop
+from .eval_export import build_eval_case_snippet
 from .live import broadcaster
 from .otlp import extract_spans
 from .otlp_metrics import extract_histogram_points
@@ -104,10 +105,44 @@ def list_traces(
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
+    tag: str | None = None,
+    session: str | None = None,
 ):
     return db.list_traces(
-        limit=limit, model=model, agent=agent, since=since, until=until, has_error=has_error
+        limit=limit,
+        model=model,
+        agent=agent,
+        since=since,
+        until=until,
+        has_error=has_error,
+        tag=tag,
+        session=session,
     )
+
+
+class TagIn(BaseModel):
+    tag: str
+
+
+@app.post("/traces/{trace_id}/tags")
+def add_trace_tag(trace_id: str, body: TagIn):
+    tag = body.tag.strip().lower()
+    return {"tags": db.add_trace_tag(trace_id, tag)}
+
+
+@app.delete("/traces/{trace_id}/tags/{tag}")
+def remove_trace_tag(trace_id: str, tag: str):
+    return {"tags": db.remove_trace_tag(trace_id, tag)}
+
+
+@app.get("/tags")
+def list_tags():
+    return db.list_tags()
+
+
+@app.get("/sessions")
+def get_session_summary():
+    return db.get_session_summary()
 
 
 @app.get("/traces/stream")
@@ -143,6 +178,43 @@ def get_agent_summary():
 @app.get("/traces/{trace_id}")
 def get_trace(trace_id: str):
     return db.get_trace_spans(trace_id)
+
+
+@app.get("/traces/{trace_id}/tags")
+def get_trace_tags(trace_id: str):
+    return {"tags": db.get_trace_tags(trace_id)}
+
+
+class AnnotationIn(BaseModel):
+    verdict: str
+    note: str | None = None
+
+
+@app.post("/traces/{trace_id}/annotations")
+def add_annotation(trace_id: str, body: AnnotationIn):
+    if body.verdict not in ("good", "bad"):
+        raise HTTPException(status_code=422, detail="verdict must be 'good' or 'bad'")
+    return db.add_annotation(trace_id, body.verdict, body.note)
+
+
+@app.get("/traces/{trace_id}/annotations")
+def list_annotations(trace_id: str):
+    return db.list_annotations(trace_id)
+
+
+@app.get("/traces/{trace_id}/eval-case", response_class=PlainTextResponse)
+def get_eval_case(trace_id: str):
+    spans = db.get_trace_spans(trace_id)
+    snippet = build_eval_case_snippet(trace_id, spans)
+    if snippet is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No captured input/output on this trace -- set IRIS_CAPTURE_CONTENT=true "
+                "on the instrumented app and re-run to promote a trace to an eval case."
+            ),
+        )
+    return snippet
 
 
 class AssertionResultIn(BaseModel):

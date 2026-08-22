@@ -6,6 +6,7 @@ import { Analytics } from "@/pages/Analytics"
 import { Connect } from "@/pages/Connect"
 import { Overview } from "@/pages/Overview"
 import { Regression } from "@/pages/Regression"
+import { Sessions } from "@/pages/Sessions"
 import { TraceDetail } from "@/pages/TraceDetail"
 import { TraceExplorer } from "@/pages/TraceExplorer"
 
@@ -16,6 +17,7 @@ function App() {
         <Route path="/" element={<Overview />} />
         <Route path="/traces" element={<TraceExplorer />} />
         <Route path="/traces/:traceId" element={<TraceDetail />} />
+        <Route path="/sessions" element={<Sessions />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/regression" element={<Regression />} />
         <Route path="/alerts" element={<Alerts />} />
