@@ -6,8 +6,10 @@ the real OTLP protobuf wire format) is our own code. Listens on the same
 from __future__ import annotations
 
 import logging
+import os
 
 from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -20,6 +22,19 @@ from .otlp import extract_spans
 logger = logging.getLogger("iris.collector")
 
 app = FastAPI(title="Iris OTLP Collector")
+
+# The dashboard (frontend/) is a separate origin (different port in dev,
+# likely a different host once deployed) -- without this, the browser
+# accepts the response at the network level but blocks it from JS, which
+# only surfaces once something actually calls this from a browser rather
+# than curl/TestClient.
+_cors_origins = os.environ.get("IRIS_CORS_ORIGINS", "http://localhost:5173")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[o.strip() for o in _cors_origins.split(",")],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")

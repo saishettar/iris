@@ -24,33 +24,34 @@ Tailwind v4), with dashboard views authored in v0 and adapted into the app
 rather than hand-coded from scratch.
 
 ## Status
-The instrumentation SDK, OTLP collector, and Postgres schema are built (the
-collector's Postgres storage layer hasn't been validated end-to-end in this
-environment — no local Docker/Postgres available during development; the code
-is written against the real driver/schema and is waiting on a live run).
+Everything below has now been run against a real `docker compose up` stack
+(Postgres + the collector), not just mocked in isolation: real OTLP spans
+from the SDK, a real eval run, and the real `/metrics/summary` aggregates,
+all stored and read back correctly, with the dashboard showing genuine data
+for all four views in a browser. That live pass also caught a real bug the
+mocked tests couldn't: the collector had no CORS headers, so a browser could
+fetch it fine over curl/TestClient but got silently blocked calling it from
+the dashboard's own origin -- fixed via `CORSMiddleware`
+(`IRIS_CORS_ORIGINS`, defaults to the Vite dev origin).
+
+The instrumentation SDK, OTLP collector, and Postgres schema (traces/spans,
+eval_runs/eval_results) are built and now verified end-to-end.
 
 The dashboard's four views (trace explorer, trace detail, analytics,
-regression) are built from a v0-generated design and all four now fetch from
-the real collector API — trace explorer (`/`), trace detail
+regression) are built from a v0-generated design and all four fetch from the
+real collector API — trace explorer (`/`), trace detail
 (`/traces/:traceId`), regression (`/regression`), and analytics
-(`/analytics`), the last backed by a new `GET /metrics/summary` endpoint
-(trace volume, model usage, and real latency percentiles derived from span
-data; no cost-by-model numbers, since there's no pricing table behind the
-captured token counts to convert them honestly). Endpoint response handling
-checked in-browser for both a populated and an empty-data response; the
-empty case is what it actually shows right now, since nothing's flowing
-through a live collector in this environment.
+(`/analytics`), the last backed by `GET /metrics/summary` (trace volume,
+model usage, and real latency percentiles derived from span data; no
+cost-by-model numbers, since there's no pricing table behind the captured
+token counts to convert them honestly).
 
 The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
 assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that
-grades output against a rubric via Claude. Validated both against a fixture
-target (no real LLM call) and against nyu-rag's real `generate_answer` path,
-live: one run caught a real brittle-regex failure (the model's phrasing
-varied between calls) that got replaced with an `llm-rubric` assertion
-instead. The collector now stores eval runs (`eval_runs`/`eval_results`
-tables, `POST /eval-runs`, `GET /eval-runs[/:id]`) and the Regression view
-reads from them — request/response parsing validated against real
-`iris-eval --out` JSON with the DB layer mocked (same unvalidated-against-a-
-live-Postgres caveat as the trace storage above). Only one run gets posted
-today, so there's no real production-vs-candidate diff yet; that's the
-natural next step once multiple version-tagged runs exist to compare.
+grades output against a rubric via Claude. Validated against a fixture
+target, against nyu-rag's real `generate_answer` path live (one run caught a
+real brittle-regex failure -- the model's phrasing varied between calls --
+that got replaced with an `llm-rubric` assertion instead), and now stored
+for real via `POST /eval-runs`. Only one run has been posted so far, so
+there's no real production-vs-candidate diff yet; that's the natural next
+step once multiple version-tagged runs exist to compare.
