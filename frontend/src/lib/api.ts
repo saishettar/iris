@@ -19,6 +19,30 @@ export interface Span {
   attributes: Record<string, unknown>
 }
 
+export interface EvalRunSummary {
+  run_id: string
+  suite_target: string
+  version_tag: string | null
+  created_at: string
+  test_count: number
+  passed_count: number
+}
+
+export interface AssertionResult {
+  assertion_type: string
+  passed: boolean
+  detail: string
+}
+
+export interface EvalResult {
+  result_id: string
+  run_id: string
+  description: string
+  passed: boolean
+  latency_ms: number
+  assertion_results: AssertionResult[]
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
 
 async function apiFetch<T>(path: string): Promise<T> {
@@ -35,4 +59,12 @@ export function listTraces(limit = 50): Promise<TraceSummary[]> {
 
 export function getTraceSpans(traceId: string): Promise<Span[]> {
   return apiFetch<Span[]>(`/traces/${encodeURIComponent(traceId)}`)
+}
+
+export function listEvalRuns(limit = 50): Promise<EvalRunSummary[]> {
+  return apiFetch<EvalRunSummary[]>(`/eval-runs?limit=${limit}`)
+}
+
+export function getEvalRun(runId: string): Promise<EvalResult[]> {
+  return apiFetch<EvalResult[]>(`/eval-runs/${encodeURIComponent(runId)}`)
 }

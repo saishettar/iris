@@ -1,22 +1,23 @@
-import { Activity, GitCompare, Workflow } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Activity, CheckCircle2, GitCompare } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { getEvalRun, listEvalRuns, type EvalResult, type EvalRunSummary } from "@/lib/api"
 
-// TODO: entirely mock data, ported as-is from v0's Evaluations tab. This view
-// depends on an eval/scoring layer (prompt/model version tagging +
-// promptfoo-style scores), which doesn't exist yet -- do not wire this to
-// fake endpoints.
+// Wired to the real /eval-runs endpoints (see eval/ and collector's
+// eval_runs/eval_results tables). Shows the latest run's results -- with
+// only one run typically posted so far, a real production-vs-candidate
+// diff isn't meaningful yet; that's the natural next step once multiple
+// version-tagged runs exist to compare.
 
 function Stat({
   label,
   value,
-  detail,
   icon: Icon,
 }: {
   label: string
   value: string
-  detail: string
   icon: typeof Activity
 }) {
   return (
@@ -28,23 +29,33 @@ function Stat({
           </span>
           <Icon className="size-4 text-primary" />
         </div>
-        <div className="flex items-end justify-between gap-2">
-          <span className="font-mono text-2xl font-semibold tracking-tight">{value}</span>
-          <span className="text-xs text-primary">{detail}</span>
-        </div>
+        <span className="font-mono text-2xl font-semibold tracking-tight">{value}</span>
       </CardContent>
     </Card>
   )
 }
 
-const REGRESSION_ROWS: [string, string, string, string][] = [
-  ["Answer quality", "91.8%", "93.1%", "+1.3%"],
-  ["Groundedness", "88.4%", "86.9%", "-1.5%"],
-  ["Tool accuracy", "96.2%", "96.8%", "+0.6%"],
-  ["Median latency", "1.84s", "1.71s", "-7.1%"],
-]
-
 export function Regression() {
+  const [runs, setRuns] = useState<EvalRunSummary[]>([])
+  const [results, setResults] = useState<EvalResult[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    listEvalRuns()
+      .then(async (fetchedRuns) => {
+        setRuns(fetchedRuns)
+        const latest = fetchedRuns[0]
+        if (latest) {
+          setResults(await getEvalRun(latest.run_id))
+        }
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const latest = runs[0]
+
   return (
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
@@ -54,58 +65,79 @@ export function Regression() {
           </p>
           <h1 className="text-3xl font-semibold tracking-tight">Regression</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Compare eval scores across prompt/model versions.
+            Eval results from iris-eval runs posted to the collector.
           </p>
         </div>
-        <Badge variant="outline">Mock data</Badge>
+        {latest && <Badge variant="outline">{latest.suite_target}</Badge>}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Stat label="Active datasets" value="12" detail="+2 this month" icon={GitCompare} />
-        <Stat label="Evaluations run" value="4,820" detail="+18.6%" icon={Activity} />
-        <Stat label="Regression alerts" value="3" detail="Needs review" icon={Workflow} />
-      </div>
+      {loading && <p className="text-sm text-muted-foreground">Loading eval runs...</p>}
+      {error && (
+        <p className="text-sm text-destructive">
+          Failed to load eval runs from the collector: {error}
+        </p>
+      )}
+      {!loading && !error && runs.length === 0 && (
+        <p className="text-sm text-muted-foreground">
+          No eval runs yet -- run <code>iris-eval suite.yaml --out results.json</code> and POST
+          the output to <code>/eval-runs</code>.
+        </p>
+      )}
 
-      <Card className="border-border/70 bg-card/70 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base">Regression comparison</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Production v2.4 compared with the latest candidate.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[620px] text-left">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                  <th className="pb-3 font-medium">Metric</th>
-                  <th className="pb-3 font-medium">Production</th>
-                  <th className="pb-3 font-medium">Candidate</th>
-                  <th className="pb-3 font-medium">Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {REGRESSION_ROWS.map(([metric, prod, candidate, change]) => (
-                  <tr key={metric} className="border-b border-border/50 text-sm last:border-0">
-                    <td className="py-4 font-medium">{metric}</td>
-                    <td className="py-4 font-mono text-muted-foreground">{prod}</td>
-                    <td className="py-4 font-mono">{candidate}</td>
-                    <td
-                      className={`py-4 font-mono ${
-                        change.startsWith("-") && metric === "Groundedness"
-                          ? "text-destructive"
-                          : "text-primary"
-                      }`}
-                    >
-                      {change}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {latest && (
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Stat label="Latest run" value={latest.version_tag ?? "untagged"} icon={GitCompare} />
+            <Stat
+              label="Tests passed"
+              value={`${latest.passed_count}/${latest.test_count}`}
+              icon={CheckCircle2}
+            />
+            <Stat label="Total runs" value={String(runs.length)} icon={Activity} />
           </div>
-        </CardContent>
-      </Card>
+
+          <Card className="border-border/70 bg-card/70 shadow-none">
+            <CardHeader>
+              <CardTitle className="text-base">Latest run results</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {new Date(latest.created_at).toLocaleString()}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[620px] text-left">
+                  <thead>
+                    <tr className="border-b border-border text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                      <th className="pb-3 font-medium">Test</th>
+                      <th className="pb-3 font-medium">Status</th>
+                      <th className="pb-3 font-medium">Latency</th>
+                      <th className="pb-3 font-medium">Assertions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {results.map((result) => (
+                      <tr key={result.result_id} className="border-b border-border/50 text-sm last:border-0">
+                        <td className="py-4 font-medium">{result.description}</td>
+                        <td className="py-4">
+                          <Badge variant={result.passed ? "secondary" : "destructive"}>
+                            {result.passed ? "Pass" : "Fail"}
+                          </Badge>
+                        </td>
+                        <td className="py-4 font-mono text-muted-foreground">
+                          {result.latency_ms.toFixed(0)}ms
+                        </td>
+                        <td className="py-4 text-xs text-muted-foreground">
+                          {result.assertion_results.map((a) => a.assertion_type).join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

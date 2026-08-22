@@ -30,11 +30,10 @@ environment — no local Docker/Postgres available during development; the code
 is written against the real driver/schema and is waiting on a live run).
 
 The dashboard's four views (trace explorer, trace detail, analytics,
-regression) are built from a v0-generated design — trace explorer (`/`) and
-trace detail (`/traces/:traceId`) are wired to the real collector API;
-analytics (`/analytics`) and regression (`/regression`) still show v0's mock
-data behind a TODO, pending an aggregate-metrics endpoint and the eval layer
-being wired into the dashboard, respectively.
+regression) are built from a v0-generated design — trace explorer (`/`),
+trace detail (`/traces/:traceId`), and regression (`/regression`) are wired
+to the real collector API; analytics (`/analytics`) still shows v0's mock
+data behind a TODO, pending an aggregate-metrics endpoint.
 
 The eval/scoring layer (`eval/`) is built: YAML test suites, deterministic
 assertions (`contains`/`regex`/`latency`), and an `llm-rubric` assertion that
@@ -42,4 +41,10 @@ grades output against a rubric via Claude. Validated both against a fixture
 target (no real LLM call) and against nyu-rag's real `generate_answer` path,
 live: one run caught a real brittle-regex failure (the model's phrasing
 varied between calls) that got replaced with an `llm-rubric` assertion
-instead. Not yet wired into the Regression dashboard view.
+instead. The collector now stores eval runs (`eval_runs`/`eval_results`
+tables, `POST /eval-runs`, `GET /eval-runs[/:id]`) and the Regression view
+reads from them — request/response parsing validated against real
+`iris-eval --out` JSON with the DB layer mocked (same unvalidated-against-a-
+live-Postgres caveat as the trace storage above). Only one run gets posted
+today, so there's no real production-vs-candidate diff yet; that's the
+natural next step once multiple version-tagged runs exist to compare.

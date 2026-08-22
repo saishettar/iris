@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import json
 import sys
 
 from .config import load_suite
@@ -14,6 +16,15 @@ def main(argv: list[str] | None = None) -> int:
         "--no-judge",
         action="store_true",
         help="skip llm-rubric assertions (fails if a test case needs one) -- no API key or spend needed",
+    )
+    parser.add_argument(
+        "--out",
+        help="write results as JSON to this path (e.g. for posting to the collector's /eval-runs)",
+    )
+    parser.add_argument(
+        "--version-tag",
+        default=None,
+        help="a label for this run (prompt/model version, git sha, ...), recorded in --out's JSON",
     )
     args = parser.parse_args(argv)
 
@@ -38,6 +49,17 @@ def main(argv: list[str] | None = None) -> int:
             failed += 1
 
     print(f"\n{len(results) - failed}/{len(results)} passed")
+
+    if args.out:
+        payload = {
+            "suite_target": suite.target,
+            "version_tag": args.version_tag,
+            "results": [dataclasses.asdict(r) for r in results],
+        }
+        with open(args.out, "w") as f:
+            json.dump(payload, f, indent=2)
+        print(f"Wrote results to {args.out}")
+
     return 1 if failed else 0
 
 
