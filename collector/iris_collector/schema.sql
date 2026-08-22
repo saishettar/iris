@@ -34,3 +34,20 @@ CREATE TABLE IF NOT EXISTS eval_results (
 );
 
 CREATE INDEX IF NOT EXISTS eval_results_run_id_idx ON eval_results (run_id);
+
+-- Real OTel Metrics (histogram data points from gen_ai.client.operation.duration
+-- and gen_ai.client.token.usage), not the custom SQL aggregates over span data
+-- that /metrics/summary computes -- a separate signal, ingested via /v1/metrics.
+CREATE TABLE IF NOT EXISTS metric_points (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    metric_name TEXT NOT NULL,
+    attributes JSONB NOT NULL DEFAULT '{}'::jsonb,
+    count BIGINT NOT NULL,
+    sum_value DOUBLE PRECISION NOT NULL,
+    min_value DOUBLE PRECISION,
+    max_value DOUBLE PRECISION,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS metric_points_name_idx ON metric_points (metric_name);

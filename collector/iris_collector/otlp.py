@@ -5,20 +5,7 @@ from datetime import datetime, timezone
 
 from opentelemetry.proto.trace.v1.trace_pb2 import Status as StatusProto
 
-
-def _attr_value(value):
-    kind = value.WhichOneof("value")
-    if kind is None:
-        return None
-    if kind == "array_value":
-        return [_attr_value(v) for v in value.array_value.values]
-    if kind == "kvlist_value":
-        return {kv.key: _attr_value(kv.value) for kv in value.kvlist_value.values}
-    return getattr(value, kind)
-
-
-def _attrs_to_dict(attrs) -> dict:
-    return {kv.key: _attr_value(kv.value) for kv in attrs}
+from .otlp_attrs import attrs_to_dict as _attrs_to_dict
 
 
 def _ns_to_dt(nanos: int) -> datetime | None:

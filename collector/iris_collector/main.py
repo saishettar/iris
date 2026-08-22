@@ -10,6 +10,10 @@ import os
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
+    ExportMetricsServiceRequest,
+    ExportMetricsServiceResponse,
+)
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
     ExportTraceServiceRequest,
     ExportTraceServiceResponse,
@@ -18,6 +22,7 @@ from pydantic import BaseModel
 
 from . import db
 from .otlp import extract_spans
+from .otlp_metrics import extract_histogram_points
 
 logger = logging.getLogger("iris.collector")
 
@@ -54,6 +59,25 @@ async def ingest_traces(request: Request) -> Response:
 
     response = ExportTraceServiceResponse()
     return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
+
+
+@app.post("/v1/metrics")
+async def ingest_metrics(request: Request) -> Response:
+    body = await request.body()
+    otlp_request = ExportMetricsServiceRequest()
+    otlp_request.ParseFromString(body)
+
+    points = extract_histogram_points(otlp_request)
+    db.insert_metric_points(points)
+    logger.info("ingested %d metric point(s)", len(points))
+
+    response = ExportMetricsServiceResponse()
+    return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
+
+
+@app.get("/metrics/raw")
+def list_metric_points(limit: int = 100):
+    return db.list_metric_points(limit=limit)
 
 
 @app.get("/traces")
