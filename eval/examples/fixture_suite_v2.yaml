@@ -1,0 +1,24 @@
+# Same target and first test description as fixture_suite.yaml, with one
+# extra assertion added that the (deterministic) fixture output doesn't
+# satisfy. Demo/validation data for the regression-diff feature -- posting
+# both this and fixture_suite.yaml under the same suite_target gives two
+# real, comparable runs with a genuine pass -> fail example to diff, without
+# needing an actual LLM behavior change to demonstrate it.
+target: "fixtures:fake_answer"
+
+tests:
+  - description: "cites the course code it recommends"
+    vars:
+      question: "What's a good course after Algorithms?"
+      courses:
+        - course_code: "CS-GY 6763"
+          title: "Algorithmic Machine Learning"
+    assert:
+      - type: regex
+        value: '\[CS-GY 6763\]'
+      - type: contains
+        value: "Algorithms"
+      - type: contains
+        value: "prerequisite"
+      - type: latency
+        threshold_ms: 1000
