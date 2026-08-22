@@ -67,22 +67,52 @@ accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
 
 Tokens live in `frontend/src/index.css`, `:root` (light) and `.dark`.
 
-### Dark-mode base: Ink Black / Prussian Blue
+### Superseded: Ink Black / Prussian Blue, and the amber accent
 
-Dark mode's neutral base moved from a near-black warm-neutral to two user-specified named
-colors -- Ink Black `#000814` (`--background`) and Prussian Blue `#001d3d` (`--card`,
-`--popover`) -- kept as literal hex rather than approximated to oklch, so the surface is
-exactly the color that was asked for. Derived surfaces (`--secondary`, `--muted`, `--accent`,
-`--chart-5`, `--sidebar`) are `color-mix(in oklch, #001d3d, white N%)` steps off that same
-anchor rather than hand-picked values, for the same reason the amber pass retinted every
-neutral: a derived ramp that quietly drifts back to an unrelated hue is a worse failure than
-one that's visibly, deliberately off, because it reads as an oversight nobody will catch
-without inspecting each token. `--border`/`--input` stayed as translucent white
-(`oklch(1 0 0 / N%)`), which was already hue-independent and needed no change. The amber
-accent (`--primary`) is unchanged and now reads more strongly against a cooler, more
-saturated base than the near-black neutral it replaced -- gold on ink navy is a real,
-recognizable pairing (instrument panels, aviation gauges), not a decorative accident.
-Light mode was left as the warm-neutral amber-tinted palette; this swap is dark-only.
+Both were replaced in the same branch by the Black / Mahogany Red palette below before
+either shipped to `main` -- left out of this file rather than kept as history noise.
+
+## Current palette: Black / Mahogany Red
+
+A second, larger user-specified named palette (Black, Carbon Black, Dark Garnet, Mahogany
+Red x2, Strawberry Red, Silver, Dust Grey, White Smoke, White) replaced both the amber
+accent and the ink-navy dark base, for both themes this time, not dark-only. Not every
+supplied swatch is used -- explicitly permitted ("don't feel the need to use all of them")
+-- and the curation itself is a real decision worth recording:
+
+- **`--primary`**: Mahogany Red, the two supplied shades split by theme -- `#a4161a`
+  (darker, light mode) and `#ba181b` (brighter, dark mode) -- same light/dark-variant
+  pattern used for every accent this project has shipped.
+- **`--destructive`**: Strawberry Red `#e5383b`, deliberately a *different* red from
+  primary rather than reusing Mahogany. Collapsing brand-accent and error-state into one
+  red would erase the distinction between "this is the product's color" and "this is
+  broken" -- two named reds in the same supplied palette made keeping that distinction
+  free.
+- **Backgrounds**: Black `#0b090a` / Carbon Black `#161a1d` (dark mode background/card);
+  White Smoke `#f5f3f4` / White `#ffffff` (light mode background/card) -- card is the
+  lighter, "raised" tone in both themes, same hierarchy direction as every palette this
+  project has used.
+- **Neutrals**: Silver `#b1a7a6` and Dust Grey `#d3d3d3` cover muted text and borders in
+  light mode; derived dark-mode surfaces (`--secondary`, `--muted`, `--sidebar`) are
+  `color-mix()` steps off Carbon Black, and hover/accent surfaces blend in Dark Garnet
+  (`color-mix(in oklch, #161a1d, #660708 35%)`) rather than a plain lighter gray -- ties
+  the reds into the neutral ramp itself instead of leaving them isolated to primary/
+  destructive, the same reasoning that drove retinting every neutral in the amber pass.
+- **Chart series 2-4** (teal/blue/green) stay outside this red family on purpose: a
+  data-viz series needs colors a viewer can tell apart at a glance, and three shades of one
+  red hue can't do that. Chart 1 and chart-5 do use the family (Mahogany, Silver).
+
+**Open tension, flagged rather than silently resolved:** this is an observability tool,
+where red carries unusually strong, specific meaning (something failed). Making the brand
+accent itself a red means ordinary volume/latency chart bars, the active-nav highlight, and
+default-state icons all render in a color family adjacent to the actual error state
+(Strawberry Red badges on Regression/Trace Detail). Verified this is a real, visible
+tension, not a hypothetical: `Regression.tsx`'s "Pass rate over time" trend bars render
+Mahogany Red immediately beside literal `Fail`/`Regressed` badges in Strawberry Red. The
+two reds are visually distinguishable (deeper/muted vs. bright/saturated) and this was
+executed as specified, not overridden -- but it's the one place this palette asks more of
+the viewer than the previous two did, and is worth deciding deliberately rather than
+inheriting by default.
 
 ## Type
 
