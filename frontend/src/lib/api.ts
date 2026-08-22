@@ -7,6 +7,7 @@ export interface TraceSummary {
   span_count: number
   agent_name: string | null
   service_name: string | null
+  tags: string[]
   session_id: string | null
 }
 
@@ -87,12 +88,29 @@ async function apiFetch<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function apiMutate<T>(
+  path: string,
+  method: "POST" | "DELETE",
+  body?: unknown
+): Promise<T> {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<T>
+}
+
 export interface TraceFilters {
   model?: string
   agent?: string
   since?: string
   until?: string
   hasError?: boolean
+  tag?: string
   session?: string
 }
 
@@ -103,6 +121,7 @@ export function listTraces(limit = 50, filters: TraceFilters = {}): Promise<Trac
   if (filters.since) params.set("since", filters.since)
   if (filters.until) params.set("until", filters.until)
   if (filters.hasError !== undefined) params.set("has_error", String(filters.hasError))
+  if (filters.tag) params.set("tag", filters.tag)
   if (filters.session) params.set("session", filters.session)
   return apiFetch<TraceSummary[]>(`/traces?${params.toString()}`)
 }
@@ -122,6 +141,30 @@ export function getSessionSummary(): Promise<SessionSummary[]> {
 
 export function getTraceSpans(traceId: string): Promise<Span[]> {
   return apiFetch<Span[]>(`/traces/${encodeURIComponent(traceId)}`)
+}
+
+export interface TagCount {
+  tag: string
+  trace_count: number
+}
+
+export function listTags(): Promise<TagCount[]> {
+  return apiFetch<TagCount[]>("/tags")
+}
+
+export function getTraceTags(traceId: string): Promise<{ tags: string[] }> {
+  return apiFetch(`/traces/${encodeURIComponent(traceId)}/tags`)
+}
+
+export function addTraceTag(traceId: string, tag: string): Promise<{ tags: string[] }> {
+  return apiMutate(`/traces/${encodeURIComponent(traceId)}/tags`, "POST", { tag })
+}
+
+export function removeTraceTag(traceId: string, tag: string): Promise<{ tags: string[] }> {
+  return apiMutate(
+    `/traces/${encodeURIComponent(traceId)}/tags/${encodeURIComponent(tag)}`,
+    "DELETE"
+  )
 }
 
 // Live tail: one real SSE event per trace the moment its spans are queryable
