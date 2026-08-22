@@ -48,12 +48,13 @@ export function TraceExplorer() {
   const [query, setQuery] = useState("")
   const [model, setModel] = useState("")
   const [agent, setAgent] = useState(() => searchParams.get("agent") ?? "")
+  const [session] = useState(() => searchParams.get("session") ?? "")
   const [rangeHours, setRangeHours] = useState<number | null>(null)
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [liveArrivedIds, setLiveArrivedIds] = useState<Set<string>>(new Set())
-  const serverFiltersActive = Boolean(model || agent || rangeHours || errorsOnly)
+  const serverFiltersActive = Boolean(model || agent || session || rangeHours || errorsOnly)
 
   useEffect(() => {
     getMetricsSummary()
@@ -77,13 +78,14 @@ export function TraceExplorer() {
     listTraces(50, {
       model: model || undefined,
       agent: agent || undefined,
+      session: session || undefined,
       since,
       hasError: errorsOnly ? true : undefined,
     })
       .then(setTraces)
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
-  }, [model, agent, rangeHours, errorsOnly])
+  }, [model, agent, session, rangeHours, errorsOnly])
 
   useEffect(() => {
     if (serverFiltersActive) return
@@ -109,7 +111,16 @@ export function TraceExplorer() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Traces</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Inspect requests ingested by the collector.
+            {session ? (
+              <>
+                Filtered to session <span className="font-mono text-foreground">{session}</span> --{" "}
+                <Link to="/sessions" className="text-primary hover:underline">
+                  all sessions
+                </Link>
+              </>
+            ) : (
+              "Inspect requests ingested by the collector."
+            )}
           </p>
         </div>
         {serverFiltersActive ? (
@@ -195,7 +206,7 @@ export function TraceExplorer() {
           )}
           {!loading && !error && filtered.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              {query || model || agent || rangeHours || errorsOnly
+              {query || serverFiltersActive
                 ? "No traces match these filters."
                 : "No traces yet -- instrument a call path with iris_otel and check back."}
             </p>
