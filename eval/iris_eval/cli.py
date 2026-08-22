@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import json
+import os
 import sys
 
 from .config import load_suite
@@ -10,6 +11,16 @@ from .runner import run_suite
 
 
 def main(argv: list[str] | None = None) -> int:
+    # A suite's `target` is resolved via importlib relative to the caller's
+    # cwd (e.g. "fixtures:fake_answer" run from an examples/ dir). `python -m
+    # iris_eval.cli` gets this for free (-m prepends cwd to sys.path), but
+    # the installed `iris-eval` console script doesn't -- it's a plain
+    # entry-point wrapper, so target resolution silently fails unless cwd is
+    # already on sys.path some other way. Add it explicitly so both
+    # invocation styles behave the same.
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
+
     parser = argparse.ArgumentParser(prog="iris-eval")
     parser.add_argument("suite", help="path to a YAML eval suite")
     parser.add_argument(
