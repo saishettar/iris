@@ -49,6 +49,30 @@ function collectorHost(): string {
   }
 }
 
+// The product's one signature mark: an aperture/iris glyph (adaptive blades
+// around a pupil), not a lettermark -- "Iris" names the part of the eye that
+// adapts to observe, and the collector is quite literally a lens on an
+// agent's behavior. Used exactly twice: here, and in public/favicon.svg.
+function IrisMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => (
+        <line
+          key={deg}
+          x1={12 + 3.5 * Math.cos((deg * Math.PI) / 180)}
+          y1={12 + 3.5 * Math.sin((deg * Math.PI) / 180)}
+          x2={12 + 8.5 * Math.cos((deg * Math.PI) / 180)}
+          y2={12 + 8.5 * Math.sin((deg * Math.PI) / 180)}
+          stroke="currentColor"
+          strokeWidth="2.1"
+          strokeLinecap="round"
+        />
+      ))}
+    </svg>
+  )
+}
+
 function activeLabel(pathname: string): string {
   if (pathname.startsWith("/traces/")) return "Trace detail"
   if (pathname === "/") return "Overview"
@@ -75,8 +99,8 @@ export function Layout() {
         <div className="flex h-full flex-col p-3">
           <div className="flex h-12 items-center justify-between px-1">
             <div className={`${collapsed ? "hidden" : "flex"} items-center gap-2`}>
-              <div className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <span className="text-sm font-semibold">i</span>
+              <div className="flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <IrisMark className="size-4" />
               </div>
               <span className="font-mono text-sm font-medium tracking-tight">iris</span>
             </div>

@@ -39,6 +39,17 @@ Themed rather than left as OS chrome: `::selection`, scrollbar (WebKit + `scroll
 `caret-color`, checkbox/radio `accent-color`, `font-variant-numeric: tabular-nums` on tables.
 See the `@layer base` block in `index.css`.
 
+## Signature mark
+
+An aperture/iris glyph (`IrisMark` in `Layout.tsx`) — a pupil with eight radial
+blades, replacing a lettermark ("i" in a rounded square) that was as generic as a
+logo gets. Matches the brand rationale in `PRODUCT.md` (the part of the eye that
+adapts to observe) and doubles as a lens/observability motif. Used in exactly two
+places: the sidebar badge and `public/favicon.svg` (a static hex-color copy, since
+a favicon renders with no page CSS context) — the favicon itself was still shipping
+Vite's default gradient-blob template asset before this pass, unrelated to the
+product and never replaced.
+
 ## Signature piece: the trace waterfall
 
 `TraceDetail.tsx` replaced a flat, unordered span list with a real proportional-width
