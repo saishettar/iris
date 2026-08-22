@@ -10,10 +10,10 @@ import json
 import logging
 import os
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
     ExportMetricsServiceRequest,
     ExportMetricsServiceResponse,
@@ -25,6 +25,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from pydantic import BaseModel
 
 from . import db
+from .eval_export import build_eval_case_snippet
 from .live import broadcaster
 from .otlp import extract_spans
 from .otlp_metrics import extract_histogram_points
@@ -141,6 +142,38 @@ def get_agent_summary():
 @app.get("/traces/{trace_id}")
 def get_trace(trace_id: str):
     return db.get_trace_spans(trace_id)
+
+
+class AnnotationIn(BaseModel):
+    verdict: str
+    note: str | None = None
+
+
+@app.post("/traces/{trace_id}/annotations")
+def add_annotation(trace_id: str, body: AnnotationIn):
+    if body.verdict not in ("good", "bad"):
+        raise HTTPException(status_code=422, detail="verdict must be 'good' or 'bad'")
+    return db.add_annotation(trace_id, body.verdict, body.note)
+
+
+@app.get("/traces/{trace_id}/annotations")
+def list_annotations(trace_id: str):
+    return db.list_annotations(trace_id)
+
+
+@app.get("/traces/{trace_id}/eval-case", response_class=PlainTextResponse)
+def get_eval_case(trace_id: str):
+    spans = db.get_trace_spans(trace_id)
+    snippet = build_eval_case_snippet(trace_id, spans)
+    if snippet is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No captured input/output on this trace -- set IRIS_CAPTURE_CONTENT=true "
+                "on the instrumented app and re-run to promote a trace to an eval case."
+            ),
+        )
+    return snippet
 
 
 class AssertionResultIn(BaseModel):

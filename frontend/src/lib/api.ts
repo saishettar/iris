@@ -108,6 +108,46 @@ export function getTraceSpans(traceId: string): Promise<Span[]> {
   return apiFetch<Span[]>(`/traces/${encodeURIComponent(traceId)}`)
 }
 
+export interface Annotation {
+  id: string
+  trace_id: string
+  verdict: "good" | "bad"
+  note: string | null
+  created_at: string
+}
+
+export function listAnnotations(traceId: string): Promise<Annotation[]> {
+  return apiFetch<Annotation[]>(`/traces/${encodeURIComponent(traceId)}/annotations`)
+}
+
+export async function addAnnotation(
+  traceId: string,
+  verdict: "good" | "bad",
+  note?: string
+): Promise<Annotation> {
+  const res = await fetch(`${API_BASE_URL}/traces/${encodeURIComponent(traceId)}/annotations`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ verdict, note: note || undefined }),
+  })
+  if (!res.ok) {
+    throw new Error(`API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json() as Promise<Annotation>
+}
+
+// Plain text, not JSON -- a paste-ready YAML snippet, not a structured
+// resource. Throws the collector's real "content wasn't captured" message
+// on 404 rather than a generic HTTP error, so the UI can show it as-is.
+export async function getEvalCaseSnippet(traceId: string): Promise<string> {
+  const res = await fetch(`${API_BASE_URL}/traces/${encodeURIComponent(traceId)}/eval-case`)
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    throw new Error(body?.detail ?? `API request failed: ${res.status} ${res.statusText}`)
+  }
+  return res.text()
+}
+
 // Live tail: one real SSE event per trace the moment its spans are queryable
 // (collector/iris_collector/live.py broadcasts right after insert_spans()),
 // not a poll loop pretending to be live. Returns an unsubscribe function.
