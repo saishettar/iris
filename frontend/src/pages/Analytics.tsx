@@ -61,6 +61,7 @@ export function Analytics() {
   const traceCount = metrics?.trace_volume.reduce((sum, d) => sum + d.count, 0) ?? 0
   const maxVolume = Math.max(1, ...(metrics?.trace_volume.map((d) => d.count) ?? [1]))
   const modelTotal = metrics?.model_usage.reduce((sum, m) => sum + m.count, 0) ?? 0
+  const maxDailyP50 = Math.max(1, ...(metrics?.latency_by_day.map((d) => d.p50) ?? [1]))
   const percentiles = metrics?.latency_percentiles ?? { p50: null, p95: null, p99: null }
   const maxPercentile = Math.max(1, percentiles.p50 ?? 0, percentiles.p95 ?? 0, percentiles.p99 ?? 0)
 
@@ -172,6 +173,37 @@ export function Analytics() {
                       </div>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/70 bg-card/70 shadow-none">
+              <CardHeader>
+                <CardTitle className="text-base">Latency over time</CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">P50 per day, last 14 days</p>
+              </CardHeader>
+              <CardContent>
+                {metrics.latency_by_day.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No completed chat spans yet.</p>
+                ) : (
+                  <>
+                    <div className="flex h-56 items-end gap-2 border-b border-border/60 px-2 pt-5">
+                      {metrics.latency_by_day.map((d) => (
+                        <div
+                          key={d.day}
+                          className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          style={{ height: `${(d.p50 / maxDailyP50) * 100}%` }}
+                          title={`${formatDay(d.day)}: ${formatMs(d.p50)}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="mt-3 flex justify-between text-xs text-muted-foreground">
+                      <span>{formatDay(metrics.latency_by_day[0].day)}</span>
+                      <span>
+                        {formatDay(metrics.latency_by_day[metrics.latency_by_day.length - 1].day)}
+                      </span>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

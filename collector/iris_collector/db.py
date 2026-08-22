@@ -258,8 +258,26 @@ def get_metrics_summary(days: int = 14) -> dict:
             )
             latency_percentiles = cur.fetchone()
 
+            cur.execute(
+                """
+                SELECT
+                    date_trunc('day', start_time) AS day,
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p50
+                FROM spans
+                WHERE name = 'chat' AND end_time IS NOT NULL
+                    AND start_time >= now() - (%s || ' days')::interval
+                GROUP BY day
+                ORDER BY day
+                """,
+                (days,),
+            )
+            latency_by_day = cur.fetchall()
+
     return {
         "trace_volume": trace_volume,
         "model_usage": model_usage,
         "latency_percentiles": latency_percentiles,
+        "latency_by_day": latency_by_day,
     }
