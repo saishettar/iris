@@ -281,3 +281,40 @@ def get_metrics_summary(days: int = 14) -> dict:
         "latency_percentiles": latency_percentiles,
         "latency_by_day": latency_by_day,
     }
+
+
+def insert_metric_points(points: list[dict]) -> None:
+    if not points:
+        return
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            psycopg2.extras.execute_values(
+                cur,
+                """
+                INSERT INTO metric_points
+                    (metric_name, attributes, count, sum_value, min_value, max_value, recorded_at)
+                VALUES %s
+                """,
+                [
+                    (
+                        p["metric_name"],
+                        psycopg2.extras.Json(p["attributes"]),
+                        p["count"],
+                        p["sum_value"],
+                        p["min_value"],
+                        p["max_value"],
+                        p["recorded_at"],
+                    )
+                    for p in points
+                ],
+            )
+
+
+def list_metric_points(limit: int = 100) -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM metric_points ORDER BY recorded_at DESC LIMIT %s",
+                (limit,),
+            )
+            return cur.fetchall()

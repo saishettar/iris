@@ -3,10 +3,12 @@ from __future__ import annotations
 import asyncio
 import functools
 import os
+import time
 from contextlib import contextmanager
 
 from opentelemetry.trace import Status, StatusCode
 
+from .metrics import get_duration_histogram, get_token_histogram
 from .tracer import get_tracer
 
 # The GenAI semantic conventions deliberately keep prompt/response content
@@ -35,7 +37,10 @@ def trace_llm_call(
     extract_messages=None,
     system_instructions: str | None = None,
 ):
-    """Wrap an LLM call in a `chat` span with `gen_ai.*` attributes (OTel GenAI conventions).
+    """Wrap an LLM call in a `chat` span with `gen_ai.*` attributes (OTel GenAI conventions),
+    and record the real OTel Metrics the conventions also specify --
+    gen_ai.client.operation.duration and gen_ai.client.token.usage histograms
+    -- not just span attributes a dashboard has to aggregate after the fact.
 
     Works on both sync and async (`async def`) target functions -- the
     wrapped call is awaited if the original was a coroutine function, since
@@ -65,7 +70,10 @@ def trace_llm_call(
                 if resolved_system:
                     span.set_attribute("gen_ai.system_instructions", str(resolved_system))
 
-        def _set_response_attrs(span, result):
+            return resolved_model
+
+        def _set_response_attrs(span, result, resolved_model, duration_s):
+            input_tokens = output_tokens = None
             if extract_usage:
                 input_tokens, output_tokens = extract_usage(result)
                 if input_tokens is not None:
@@ -79,20 +87,29 @@ def trace_llm_call(
             if CAPTURE_CONTENT and extract_messages:
                 span.set_attribute("gen_ai.output.messages", str(extract_messages(result)))
 
+            metric_attrs = {"gen_ai.request.model": resolved_model} if resolved_model else {}
+            get_duration_histogram().record(duration_s, metric_attrs)
+            if input_tokens is not None:
+                get_token_histogram().record(input_tokens, {**metric_attrs, "gen_ai.token.type": "input"})
+            if output_tokens is not None:
+                get_token_histogram().record(output_tokens, {**metric_attrs, "gen_ai.token.type": "output"})
+
         if asyncio.iscoroutinefunction(func):
 
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 tracer = get_tracer()
                 with tracer.start_as_current_span("chat") as span:
-                    _set_request_attrs(span, kwargs)
+                    resolved_model = _set_request_attrs(span, kwargs)
+                    start = time.perf_counter()
                     try:
                         result = await func(*args, **kwargs)
                     except Exception as exc:
                         span.record_exception(exc)
                         span.set_status(Status(StatusCode.ERROR, str(exc)))
                         raise
-                    _set_response_attrs(span, result)
+                    duration_s = time.perf_counter() - start
+                    _set_response_attrs(span, result, resolved_model, duration_s)
                     return result
 
             return async_wrapper
@@ -101,14 +118,16 @@ def trace_llm_call(
         def sync_wrapper(*args, **kwargs):
             tracer = get_tracer()
             with tracer.start_as_current_span("chat") as span:
-                _set_request_attrs(span, kwargs)
+                resolved_model = _set_request_attrs(span, kwargs)
+                start = time.perf_counter()
                 try:
                     result = func(*args, **kwargs)
                 except Exception as exc:
                     span.record_exception(exc)
                     span.set_status(Status(StatusCode.ERROR, str(exc)))
                     raise
-                _set_response_attrs(span, result)
+                duration_s = time.perf_counter() - start
+                _set_response_attrs(span, result, resolved_model, duration_s)
                 return result
 
         return sync_wrapper

@@ -15,14 +15,16 @@ Every LLM app eventually needs the same three things: know what your pipeline ac
 ## Features
 
 - Python instrumentation SDK (`iris_otel`) emitting real `gen_ai.*` spans per the OpenTelemetry GenAI semantic conventions — `chat`, `execute_tool`, and `invoke_agent` span kinds, both sync and async target functions
+- Also emits the conventions' actual OTel *Metrics*: `gen_ai.client.operation.duration` and `gen_ai.client.token.usage` as real Histogram instruments over OTLP, not just span attributes a dashboard aggregates after the fact
 - Prompt/response content capture is opt-in and off by default (`IRIS_CAPTURE_CONTENT`), matching the convention's privacy stance
-- Hand-rolled OTLP/HTTP collector (FastAPI) that parses the real `ExportTraceServiceRequest` protobuf directly via `opentelemetry-proto`, rather than wrapping the stock OpenTelemetry Collector binary
-- Postgres-backed storage for traces/spans and eval runs, with aggregate queries for trace volume, model usage, and real p50/p95/p99 latency percentiles computed from span timestamps
+- Hand-rolled OTLP/HTTP collector (FastAPI) that parses the real `ExportTraceServiceRequest`/`ExportMetricsServiceRequest` protobufs directly via `opentelemetry-proto`, rather than wrapping the stock OpenTelemetry Collector binary
+- Postgres-backed storage for traces/spans, eval runs, and raw OTel metric points, with aggregate queries for trace volume (filterable by model/time-range/error-status), model usage, and real p50/p95/p99 latency percentiles and trends computed from span timestamps
 - Cost-by-model computed from real captured token counts against an editable pricing table — empty by default rather than showing a fabricated number
-- YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`) and an `llm-rubric` assertion that grades output against a plain-language rubric via Claude
-- Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows)
-- A GitHub Action that runs the eval suite on every PR touching the prompt and posts results as a comment, failing the check on regression
+- YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`, `cost`) and LLM-judge assertions (`llm-rubric`, `answer-relevance`) via Claude, plus CLI-level baseline diffing (`--baseline`)
+- Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows), with a pass-rate-over-time trend across every run of a suite
+- A GitHub Action (in both dogfooded apps) that runs the eval suite on every PR touching the prompt and posts results as a comment, failing the check on regression
 - React dashboard (trace explorer, trace/span detail, analytics, regression) wired entirely to the real collector API — no mock data left in the shipped app
+- One-command self-hosted setup: `docker compose up -d` brings up Postgres, the collector, *and* the dashboard
 
 ## Tech Stack
 
@@ -37,16 +39,10 @@ Every LLM app eventually needs the same three things: know what your pipeline ac
 git clone https://github.com/saishettar/iris.git
 cd iris
 
-# Backend: Postgres + collector
-docker compose up -d
-
-# Frontend
-cd frontend
-npm install
-npm run dev   # http://localhost:5173
+docker compose up -d --build   # Postgres + collector + dashboard
 ```
 
-The collector listens on `http://localhost:4318` (the OTLP default). The frontend picks that up automatically in dev; override with `VITE_API_BASE_URL` if you're pointing it somewhere else (see `frontend/.env.example`).
+Dashboard at `http://localhost:5173`, collector at `http://localhost:4318` (the OTLP default). For frontend dev iteration instead of the built container, run `cd frontend && npm install && npm run dev` — `VITE_API_BASE_URL` (see `frontend/.env.example`) points it at a different collector if needed.
 
 To also run eval suites with `llm-rubric` assertions, set `ANTHROPIC_API_KEY` in your environment.
 
@@ -90,22 +86,26 @@ Add `--out results.json --version-tag <label>` and `POST` the file to `/eval-run
 
 ```
 ├── sdk/
-│   └── iris_otel/            # Instrumentation SDK: observe(), trace_llm_call(), Anthropic presets
+│   └── iris_otel/            # observe(), trace_llm_call(), Anthropic presets
+│       ├── tracer.py          # Span export (OTLP/HTTP)
+│       └── metrics.py         # Real Histogram instruments (OTLP/HTTP)
 ├── collector/
 │   └── iris_collector/
 │       ├── main.py           # FastAPI app: OTLP ingest + query endpoints
-│       ├── otlp.py           # OTLP protobuf -> row dicts
-│       ├── db.py             # Postgres schema, queries, aggregate metrics
+│       ├── otlp.py           # Trace protobuf -> row dicts
+│       ├── otlp_metrics.py   # Metrics protobuf -> row dicts
+│       ├── otlp_attrs.py     # Shared KeyValue-list parsing
+│       ├── db.py             # Postgres schema, queries, aggregates
 │       └── pricing.py        # Per-model $/M-token table (empty by default)
 ├── eval/
-│   └── iris_eval/            # YAML suite loader, assertions, LLM-judge, CLI
+│   └── iris_eval/            # YAML suite loader, assertions, LLM-judge, diff, CLI
 ├── frontend/
 │   └── src/
 │       ├── pages/            # TraceExplorer, TraceDetail, Analytics, Regression
 │       ├── components/       # Layout shell + shadcn/ui primitives
 │       └── lib/api.ts        # Typed fetch client for the collector
 ├── docs/screenshots/
-├── docker-compose.yml        # Postgres + collector, one command
+├── docker-compose.yml        # Postgres + collector + frontend, one command
 └── observability_platform_scope.md   # Original planning doc (direction, not a spec)
 ```
 
@@ -114,7 +114,7 @@ Add `--out results.json --version-tag <label>` and `POST` the file to `/eval-run
 Iris is instrumented into two other real projects, not synthetic test traffic:
 
 - **[nyu-rag](https://github.com/saishettar/nyu-rag)** — a single-call RAG answer generator. First real eval run against it caught a genuine bug in the eval suite itself: a regex assertion failed on a correct answer because the model's phrasing varied between calls. Replaced with an `llm-rubric` assertion; both cases pass consistently now.
-- **[undercut](https://github.com/saishettar/undercut)** (formerly f1-race-strategy-agent) — a multi-round Claude tool-use agent making live pit-strategy calls. Instrumenting this (a materially different shape than nyu-rag's single call) surfaced two real gaps in the SDK: `trace_llm_call` didn't support `async` target functions, and system-prompt capture only worked for a static, decoration-time string, not one built per call from request state. Both fixed before this integration shipped.
+- **[undercut](https://github.com/saishettar/undercut)** (formerly f1-race-strategy-agent) — a multi-round Claude tool-use agent making live pit-strategy calls. Instrumenting this (a materially different shape than nyu-rag's single call) surfaced two real gaps in the SDK: `trace_llm_call` didn't support `async` target functions, and system-prompt capture only worked for a static, decoration-time string, not one built per call from request state. Both fixed before this integration shipped. Its eval suite runs the agent against real cached race-session data (not synthetic curves), grading both the verdict and whether the reasoning cites the right factors.
 
 Running the real stack locally also caught a bug no mocked test could: the collector had no CORS headers, so `curl`/`TestClient` saw a fine response while an actual browser on the dashboard's own origin got silently blocked. Fixed with `CORSMiddleware`.
 
@@ -126,20 +126,23 @@ iris_otel SDK                    collector (FastAPI)              Postgres
   │ @trace_llm_call / observe()      │
   │ chat / execute_tool /            │
   │ invoke_agent spans               │
+  │ + duration/token histograms      │
   ▼                                  │
-  OTLP/HTTP ───────────────────────▶ │ POST /v1/traces
-                                     │ (real protobuf parsing,       traces
-                                     │  no OTel Collector binary) ─▶ spans
+  OTLP/HTTP ───────────────────────▶ │ POST /v1/traces              traces
+                                     │ POST /v1/metrics              spans
+                                     │ (real protobuf parsing,       metric_points
+                                     │  no OTel Collector binary)
                                      │
 eval/ (iris-eval CLI)               │
   YAML suite → assertions           │
-  (contains/regex/latency/          │
-   llm-rubric via Claude)           │
+  (contains/regex/latency/cost/     │
+   llm-rubric/answer-relevance)     │
   --out results.json ─────────────▶ │ POST /eval-runs             eval_runs
-                                     │ ───────────────────────────▶ eval_results
+  --baseline <prev>  (CLI diff)     │ ───────────────────────────▶ eval_results
                                      │
-                                     │ GET /traces, /eval-runs,
-                                     │     /metrics/summary
+                                     │ GET /traces (+filters),
+                                     │     /eval-runs, /metrics/summary,
+                                     │     /metrics/raw
                                      ▼
                               React dashboard
                         (trace explorer/detail,
@@ -150,15 +153,26 @@ eval/ (iris-eval CLI)               │
 
 ## Roadmap / Limitations
 
-**Known gaps against the original plan**, kept honest rather than hidden:
-- No OTel *Metrics* signal (histograms) — dashboard aggregates are custom SQL over span data, not real `gen_ai.client.operation.duration`/`token.usage` metric instruments
-- Eval assertions are missing a `cost` threshold type and an `answer-relevance` equivalent (only `contains`/`regex`/`latency`/`llm-rubric` exist)
-- Eval runs are standalone re-invocations of the target function, not scoring of live traffic already flowing through the collector — closer to how promptfoo actually works than the platform-integrated version originally planned
-- Trace explorer filters by trace ID only — no filtering by model, time range, eval score, or error status yet
-- No eval-score-trend chart; cost/latency in Analytics are current snapshots, not plotted over time
-- `iris-eval` doesn't diff against a stored baseline itself — that logic lives in the dashboard, not the CLI
-- `undercut` is SDK-instrumented but has no eval suite yet, so no CI gate there
-- `docker compose up` covers Postgres + collector; the frontend still needs a separate `npm install && npm run dev`
+Everything that was a real gap against the original plan (no OTel Metrics
+signal, missing `cost`/`answer-relevance` assertions, trace filtering,
+eval/latency trend charts, no CLI baseline diff, `undercut` had no eval
+suite, `docker compose up` didn't include the frontend) has been closed —
+each verified against the live stack, not just unit-tested in isolation.
+What's left:
+
+- Real OTel metric points (`gen_ai.client.operation.duration`/`token.usage`)
+  are ingested and stored (`GET /metrics/raw`), but there's no dashboard
+  visualization of them yet — Analytics still reads from the span-based SQL
+  aggregates, which remain accurate and don't need replacing, just don't
+  (yet) draw from this second, now-real signal
+- Eval runs are standalone re-invocations of the target function, not
+  scoring of live traffic already flowing through the collector — a
+  deliberate design decision (closer to how promptfoo actually works than
+  the platform-integrated version originally planned), not an oversight.
+  Follows that filtering traces by eval score isn't possible either, for
+  the same reason
+- No auth on the collector or dashboard — fine for a self-hosted personal
+  tool, worth flagging if this ever runs somewhere shared
 
 **Stretch goals, not started:** multi-provider support beyond Claude, cost-spike alerting, OpenTelemetry Collector export/import interop.
 
