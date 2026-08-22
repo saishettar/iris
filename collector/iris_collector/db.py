@@ -87,6 +87,8 @@ def list_traces(
     since: str | None = None,
     until: str | None = None,
     has_error: bool | None = None,
+    tag: str | None = None,
+    session: str | None = None,
 ) -> list[dict]:
     conditions = []
     params: list = []
@@ -124,6 +126,15 @@ def list_traces(
             "NOT EXISTS (SELECT 1 FROM spans s3 WHERE s3.trace_id = t.trace_id "
             "AND s3.status_code = 'STATUS_CODE_ERROR')"
         )
+    if tag:
+        conditions.append("%s = ANY(t.tags)")
+        params.append(tag)
+    if session:
+        conditions.append(
+            "EXISTS (SELECT 1 FROM spans s6 WHERE s6.trace_id = t.trace_id "
+            "AND s6.parent_span_id IS NULL AND s6.attributes->>'session.id' = %s)"
+        )
+        params.append(session)
 
     where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     params.append(limit)
@@ -135,17 +146,21 @@ def list_traces(
                 SELECT
                     t.trace_id,
                     t.first_seen_at,
+                    t.tags,
                     count(s.span_id) AS span_count,
                     (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
                      WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
                      LIMIT 1) AS agent_name,
                     (SELECT s4.service_name FROM spans s4
                      WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
-                     LIMIT 1) AS service_name
+                     LIMIT 1) AS service_name,
+                    (SELECT s4.attributes->>'session.id' FROM spans s4
+                     WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
+                     LIMIT 1) AS session_id
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
                 {where_clause}
-                GROUP BY t.trace_id, t.first_seen_at
+                GROUP BY t.trace_id, t.first_seen_at, t.tags
                 ORDER BY t.first_seen_at DESC
                 LIMIT %s
                 """,
@@ -168,6 +183,7 @@ def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
                 SELECT
                     t.trace_id,
                     t.first_seen_at,
+                    t.tags,
                     count(s.span_id) AS span_count,
                     (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
                      WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL
@@ -178,11 +194,70 @@ def get_trace_summaries(trace_ids: list[str]) -> list[dict]:
                 FROM traces t
                 JOIN spans s ON s.trace_id = t.trace_id
                 WHERE t.trace_id = ANY(%s)
-                GROUP BY t.trace_id, t.first_seen_at
+                GROUP BY t.trace_id, t.first_seen_at, t.tags
                 """,
                 (trace_ids,),
             )
             return cur.fetchall()
+
+
+def add_trace_tag(trace_id: str, tag: str) -> list[str]:
+    """Postgres array_append with a pre-check rather than a set union in SQL --
+    keeps tag order stable (append order) instead of the arbitrary order a
+    dedup-via-set approach would produce, which matters for a user manually
+    building up a small ordered list of tags on one trace."""
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE traces SET tags = array_append(tags, %s)
+                WHERE trace_id = %s AND NOT (%s = ANY(tags))
+                RETURNING tags
+                """,
+                (tag, trace_id, tag),
+            )
+            row = cur.fetchone()
+            if row is not None:
+                return row[0]
+            cur.execute("SELECT tags FROM traces WHERE trace_id = %s", (trace_id,))
+            existing = cur.fetchone()
+            return existing[0] if existing else []
+
+
+def remove_trace_tag(trace_id: str, tag: str) -> list[str]:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE traces SET tags = array_remove(tags, %s) WHERE trace_id = %s RETURNING tags",
+                (tag, trace_id),
+            )
+            row = cur.fetchone()
+            return row[0] if row else []
+
+
+def list_tags() -> list[dict]:
+    """Distinct tags in use across all traces, with counts -- powers the tag
+    filter dropdown without the frontend having to derive it from a full
+    trace dump."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT tag, count(*) AS trace_count
+                FROM traces, unnest(tags) AS tag
+                GROUP BY tag
+                ORDER BY trace_count DESC, tag
+                """
+            )
+            return cur.fetchall()
+
+
+def get_trace_tags(trace_id: str) -> list[str]:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT tags FROM traces WHERE trace_id = %s", (trace_id,))
+            row = cur.fetchone()
+            return row[0] if row else []
 
 
 def add_annotation(trace_id: str, verdict: str, note: str | None) -> dict:
@@ -468,6 +543,62 @@ def get_agent_summary() -> list[dict]:
                 LEFT JOIN agent_latency l ON l.agent_key = r.agent_key
                 LEFT JOIN agent_model m ON m.agent_key = r.agent_key
                 ORDER BY r.last_seen_at DESC
+                """
+            )
+            return cur.fetchall()
+
+
+def get_session_summary() -> list[dict]:
+    """One row per distinct session.id (an app-set span attribute on the root
+    span -- observe("invoke_agent", **{"session.id": "..."}) already forwards
+    it, no SDK change needed), for multi-turn agents that group several real
+    traces under one conversation. Traces with no session.id attribute simply
+    aren't part of any session and don't appear here -- there's no fallback
+    identity the way agent_name falls back to service_name, because a session
+    grouping that silently included ungrouped traces would misrepresent which
+    traces are actually related turns."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                WITH trace_sessions AS (
+                    SELECT
+                        t.trace_id,
+                        t.first_seen_at,
+                        (SELECT s4.attributes->>'session.id' FROM spans s4
+                         WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL LIMIT 1)
+                            AS session_id,
+                        COALESCE(
+                            (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
+                             WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL LIMIT 1),
+                            (SELECT s4.service_name FROM spans s4
+                             WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL LIMIT 1),
+                            'unnamed agent'
+                        ) AS agent_name,
+                        EXISTS (
+                            SELECT 1 FROM spans s3
+                            WHERE s3.trace_id = t.trace_id AND s3.status_code = 'STATUS_CODE_ERROR'
+                        ) AS has_error
+                    FROM traces t
+                ),
+                session_agent AS (
+                    SELECT DISTINCT ON (session_id) session_id, agent_name
+                    FROM trace_sessions
+                    WHERE session_id IS NOT NULL
+                    ORDER BY session_id, first_seen_at DESC
+                )
+                SELECT
+                    ts.session_id,
+                    count(*) AS trace_count,
+                    min(ts.first_seen_at) AS first_seen_at,
+                    max(ts.first_seen_at) AS last_seen_at,
+                    bool_or(ts.has_error) AS has_error,
+                    sa.agent_name
+                FROM trace_sessions ts
+                JOIN session_agent sa ON sa.session_id = ts.session_id
+                WHERE ts.session_id IS NOT NULL
+                GROUP BY ts.session_id, sa.agent_name
+                ORDER BY max(ts.first_seen_at) DESC
                 """
             )
             return cur.fetchall()
