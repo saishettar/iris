@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
 import { Search } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { getMetricsSummary, listTraces, type TraceSummary } from "@/lib/api"
 
 // Ported from v0's "Trace explorer" card (part of its combined Traces tab).
@@ -33,12 +33,13 @@ function timeAgo(iso: string): string {
 }
 
 export function TraceExplorer() {
+  const [searchParams] = useSearchParams()
   const [traces, setTraces] = useState<TraceSummary[]>([])
   const [models, setModels] = useState<string[]>([])
   const [agents, setAgents] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [model, setModel] = useState("")
-  const [agent, setAgent] = useState("")
+  const [agent, setAgent] = useState(() => searchParams.get("agent") ?? "")
   const [rangeHours, setRangeHours] = useState<number | null>(null)
   const [errorsOnly, setErrorsOnly] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +53,9 @@ export function TraceExplorer() {
     // agent filter is currently applied to the main (filtered) fetch below.
     listTraces(200)
       .then((all) => {
-        const names = new Set(all.map((t) => t.agent_name).filter((n): n is string => !!n))
+        const names = new Set(
+          all.map((t) => t.agent_name ?? t.service_name).filter((n): n is string => !!n)
+        )
         setAgents(Array.from(names).sort())
       })
       .catch(() => {})
@@ -77,19 +80,14 @@ export function TraceExplorer() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">Iris workspace</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Traces</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">Traces</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Inspect requests ingested by the collector.
         </p>
       </div>
 
       <Card className="border-border/70 bg-card/70 shadow-none">
-        <CardHeader>
-          <CardTitle className="text-base">Trace explorer</CardTitle>
-          <p className="mt-1 text-sm text-muted-foreground">Click a trace to see its span detail.</p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-end gap-3">
             <div className="relative max-w-sm flex-1">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -164,22 +162,26 @@ export function TraceExplorer() {
             </p>
           )}
 
-          <div className="space-y-2">
-            {filtered.map((trace) => (
+          <div className="overflow-hidden rounded-md border border-border">
+            {filtered.map((trace, i) => (
               <Link
                 key={trace.trace_id}
                 to={`/traces/${trace.trace_id}`}
-                className="flex items-center justify-between rounded-md border border-border/60 p-4 text-left transition-colors hover:bg-accent"
+                className={`flex items-center justify-between px-4 py-3 text-left transition-colors hover:bg-accent/60 ${
+                  i !== filtered.length - 1 ? "border-b border-border/60" : ""
+                }`}
               >
-                <div>
-                  <div className="text-sm font-medium">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium">
                     {trace.agent_name ?? trace.service_name ?? "unnamed agent"}
                   </div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {trace.trace_id} · {timeAgo(trace.first_seen_at)}
+                  <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                    {trace.trace_id} <span className="mx-1.5 text-border">·</span> {timeAgo(trace.first_seen_at)}
                   </div>
                 </div>
-                <Badge variant="secondary">{trace.span_count} spans</Badge>
+                <Badge variant="outline" className="ml-3 shrink-0 font-mono">
+                  {trace.span_count} spans
+                </Badge>
               </Link>
             ))}
           </div>

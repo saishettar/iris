@@ -2,6 +2,8 @@ import { Route, Routes } from "react-router-dom"
 
 import { Layout } from "@/components/Layout"
 import { Analytics } from "@/pages/Analytics"
+import { Connect } from "@/pages/Connect"
+import { Overview } from "@/pages/Overview"
 import { Regression } from "@/pages/Regression"
 import { TraceDetail } from "@/pages/TraceDetail"
 import { TraceExplorer } from "@/pages/TraceExplorer"
@@ -10,10 +12,12 @@ function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<TraceExplorer />} />
+        <Route path="/" element={<Overview />} />
+        <Route path="/traces" element={<TraceExplorer />} />
         <Route path="/traces/:traceId" element={<TraceDetail />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/regression" element={<Regression />} />
+        <Route path="/connect" element={<Connect />} />
       </Route>
     </Routes>
   )

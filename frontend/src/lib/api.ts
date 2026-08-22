@@ -76,7 +76,7 @@ export interface MetricsSummary {
   latency_by_day: LatencyByDay[]
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
 
 async function apiFetch<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`)
@@ -110,6 +110,19 @@ export function getTraceSpans(traceId: string): Promise<Span[]> {
 
 export function listEvalRuns(limit = 50): Promise<EvalRunSummary[]> {
   return apiFetch<EvalRunSummary[]>(`/eval-runs?limit=${limit}`)
+}
+
+export interface AgentSummary {
+  agent_name: string
+  trace_count: number
+  error_count: number
+  last_seen_at: string
+  p50_latency_ms: number | null
+  primary_model: string | null
+}
+
+export function getAgentSummary(): Promise<AgentSummary[]> {
+  return apiFetch<AgentSummary[]>("/agents")
 }
 
 export function getEvalRun(runId: string): Promise<EvalResult[]> {

@@ -88,11 +88,11 @@ const CHANGE_LABEL: Record<Change, string> = {
   unchanged: "No change",
 }
 
-const CHANGE_VARIANT: Record<Change, "secondary" | "destructive" | "outline"> = {
+const CHANGE_VARIANT: Record<Change, "success" | "destructive" | "outline"> = {
   new: "outline",
   removed: "outline",
   regressed: "destructive",
-  fixed: "secondary",
+  fixed: "success",
   unchanged: "outline",
 }
 
@@ -155,15 +155,16 @@ export function Regression() {
     <div className="space-y-6">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
-            Iris workspace
-          </p>
-          <h1 className="text-3xl font-semibold tracking-tight">Regression</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <h1 className="text-2xl font-semibold tracking-tight">Regression</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Compare eval runs from iris-eval posted to the collector.
           </p>
         </div>
-        {candidateRun && <Badge variant="outline">{candidateRun.suite_target}</Badge>}
+        {candidateRun && (
+          <Badge variant="outline" className="font-mono">
+            {candidateRun.suite_target}
+          </Badge>
+        )}
       </div>
 
       {loading && <p className="text-sm text-muted-foreground">Loading eval runs...</p>}
@@ -210,7 +211,7 @@ export function Regression() {
                     return (
                       <div
                         key={run.run_id}
-                        className={`flex-1 transition-colors ${
+                        className={`max-w-12 flex-1 transition-colors ${
                           run.run_id === candidateId ? "bg-primary" : "bg-primary/50 hover:bg-primary/75"
                         }`}
                         style={{ height: `${Math.max(percent, 2)}%` }}
@@ -272,7 +273,7 @@ export function Regression() {
                         {baselineId && (
                           <td className="py-4">
                             {row.baseline ? (
-                              <Badge variant={row.baseline.passed ? "secondary" : "destructive"}>
+                              <Badge variant={row.baseline.passed ? "success" : "destructive"}>
                                 {row.baseline.passed ? "Pass" : "Fail"}
                               </Badge>
                             ) : (
@@ -282,7 +283,7 @@ export function Regression() {
                         )}
                         <td className="py-4">
                           {row.candidate ? (
-                            <Badge variant={row.candidate.passed ? "secondary" : "destructive"}>
+                            <Badge variant={row.candidate.passed ? "success" : "destructive"}>
                               {row.candidate.passed ? "Pass" : "Fail"}
                             </Badge>
                           ) : (

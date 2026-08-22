@@ -96,11 +96,8 @@ export function Analytics() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
-          Iris workspace
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Analytics</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Aggregate volume, latency, and model usage from real span data.
         </p>
       </div>
@@ -138,7 +135,7 @@ export function Analytics() {
                       {metrics.trace_volume.map((d) => (
                         <div
                           key={d.day}
-                          className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
                           style={{ height: `${(d.count / maxVolume) * 100}%` }}
                           title={`${formatDay(d.day)}: ${d.count}`}
                         />
@@ -219,7 +216,7 @@ export function Analytics() {
                       {metrics.latency_by_day.map((d) => (
                         <div
                           key={d.day}
-                          className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
                           style={{ height: `${(d.p50 / maxDailyP50) * 100}%` }}
                           title={`${formatDay(d.day)}: ${formatMs(d.p50)}`}
                         />
@@ -312,7 +309,7 @@ export function Analytics() {
                           {otel.operations_by_hour.map((b) => (
                             <div
                               key={b.bucket}
-                              className="flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                              className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
                               style={{ height: `${(b.operation_count / maxHourlyOps) * 100}%` }}
                               title={`${formatHour(b.bucket)}: ${b.operation_count}`}
                             />

@@ -99,6 +99,11 @@ def list_traces(
     )
 
 
+@app.get("/agents")
+def get_agent_summary():
+    return db.get_agent_summary()
+
+
 @app.get("/traces/{trace_id}")
 def get_trace(trace_id: str):
     return db.get_trace_spans(trace_id)

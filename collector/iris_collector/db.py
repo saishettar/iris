@@ -98,9 +98,14 @@ def list_traces(
         )
         params.append(model)
     if agent:
+        # Matches the same agent.name-then-service_name fallback used everywhere
+        # this identity is displayed (get_agent_summary(), the SELECT below) --
+        # filtering on gen_ai.agent.name alone silently excluded any trace whose
+        # only identity is service_name.
         conditions.append(
             "EXISTS (SELECT 1 FROM spans s5 WHERE s5.trace_id = t.trace_id "
-            "AND s5.parent_span_id IS NULL AND s5.attributes->>'gen_ai.agent.name' = %s)"
+            "AND s5.parent_span_id IS NULL "
+            "AND COALESCE(s5.attributes->>'gen_ai.agent.name', s5.service_name) = %s)"
         )
         params.append(agent)
     if since:
@@ -332,6 +337,83 @@ def list_metric_points(limit: int = 100) -> list[dict]:
             cur.execute(
                 "SELECT * FROM metric_points ORDER BY recorded_at DESC LIMIT %s",
                 (limit,),
+            )
+            return cur.fetchall()
+
+
+def get_agent_summary() -> list[dict]:
+    """Per-agent rollup for the Overview page: one row per distinct agent (falling
+    back to service_name, then 'unnamed agent', the same precedence list_traces()
+    uses for its agent filter/label). Real SQL aggregates, same pattern as
+    get_metrics_summary() -- no client-side grouping of a raw trace dump."""
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                WITH trace_agents AS (
+                    SELECT
+                        t.trace_id,
+                        t.first_seen_at,
+                        COALESCE(
+                            (SELECT s4.attributes->>'gen_ai.agent.name' FROM spans s4
+                             WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL LIMIT 1),
+                            (SELECT s4.service_name FROM spans s4
+                             WHERE s4.trace_id = t.trace_id AND s4.parent_span_id IS NULL LIMIT 1),
+                            'unnamed agent'
+                        ) AS agent_key,
+                        EXISTS (
+                            SELECT 1 FROM spans s3
+                            WHERE s3.trace_id = t.trace_id AND s3.status_code = 'STATUS_CODE_ERROR'
+                        ) AS has_error
+                    FROM traces t
+                ),
+                agent_rollup AS (
+                    SELECT
+                        agent_key,
+                        count(*) AS trace_count,
+                        count(*) FILTER (WHERE has_error) AS error_count,
+                        max(first_seen_at) AS last_seen_at
+                    FROM trace_agents
+                    GROUP BY agent_key
+                ),
+                agent_latency AS (
+                    SELECT
+                        ta.agent_key,
+                        percentile_cont(0.5) WITHIN GROUP (
+                            ORDER BY EXTRACT(EPOCH FROM (sp.end_time - sp.start_time)) * 1000
+                        ) AS p50_latency_ms
+                    FROM trace_agents ta
+                    JOIN spans sp ON sp.trace_id = ta.trace_id
+                    WHERE sp.name = 'chat' AND sp.end_time IS NOT NULL
+                    GROUP BY ta.agent_key
+                ),
+                agent_model_counts AS (
+                    SELECT
+                        ta.agent_key,
+                        sp.attributes->>'gen_ai.request.model' AS model,
+                        count(*) AS model_count
+                    FROM trace_agents ta
+                    JOIN spans sp ON sp.trace_id = ta.trace_id
+                    WHERE sp.name = 'chat' AND sp.attributes ? 'gen_ai.request.model'
+                    GROUP BY ta.agent_key, model
+                ),
+                agent_model AS (
+                    SELECT DISTINCT ON (agent_key) agent_key, model
+                    FROM agent_model_counts
+                    ORDER BY agent_key, model_count DESC
+                )
+                SELECT
+                    r.agent_key AS agent_name,
+                    r.trace_count,
+                    r.error_count,
+                    r.last_seen_at,
+                    l.p50_latency_ms,
+                    m.model AS primary_model
+                FROM agent_rollup r
+                LEFT JOIN agent_latency l ON l.agent_key = r.agent_key
+                LEFT JOIN agent_model m ON m.agent_key = r.agent_key
+                ORDER BY r.last_seen_at DESC
+                """
             )
             return cur.fetchall()
 
