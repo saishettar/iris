@@ -218,18 +218,18 @@ export function Overview() {
             })}
 
             <Link to="/connect" className="group">
-              <Card className="h-full overflow-hidden bg-gradient-to-br from-[oklch(0.55_0.2_275)] to-[oklch(0.32_0.16_300)] shadow-lg shadow-[oklch(0.32_0.16_300)]/30 ring-1 ring-white/10">
+              <Card className="h-full overflow-hidden bg-gradient-to-br from-[color-mix(in_oklch,var(--color-primary),var(--color-card)_82%)] to-[var(--color-card)] ring-1 ring-primary/15">
                 <CardContent className="flex h-full flex-col justify-between gap-4 p-5">
                   <div>
-                    <span className="flex size-8 items-center justify-center rounded-full bg-white/15 text-white">
+                    <span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-primary">
                       <Plug className="size-4" />
                     </span>
-                    <p className="mt-3 text-sm font-semibold text-white">Connect another agent</p>
-                    <p className="mt-1 text-xs text-white/70">
+                    <p className="mt-3 text-sm font-semibold text-foreground">Connect another agent</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
                       Three steps, real data flowing here within a minute.
                     </p>
                   </div>
-                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-white/95 px-4 py-2 text-xs font-medium text-[oklch(0.32_0.16_300)] transition-colors group-hover:bg-white">
+                  <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-colors group-hover:bg-primary/90">
                     Get started
                   </span>
                 </CardContent>

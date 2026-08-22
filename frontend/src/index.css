@@ -53,76 +53,88 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.16 0.015 276);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.16 0.015 276);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.16 0.015 276);
-    --primary: oklch(0.5 0.21 276);
-    --primary-foreground: oklch(0.98 0.01 276);
-    --secondary: oklch(0.96 0.006 276);
-    --secondary-foreground: oklch(0.24 0.02 276);
-    --muted: oklch(0.96 0.006 276);
-    --muted-foreground: oklch(0.48 0.02 276);
-    --accent: oklch(0.94 0.03 276);
-    --accent-foreground: oklch(0.3 0.08 276);
-    --destructive: oklch(0.577 0.245 27.325);
+    /* Black / Mahogany Red / Strawberry Red / Silver / Dust Grey / White
+       Smoke / White -- user-specified named palette, kept as literal hex.
+       Not every supplied swatch is used (Carbon Black and Dark Garnet are
+       dark-mode-only); chart-2/3/4 stay outside this family on purpose,
+       see DESIGN.md -- a data-viz series needs colors a viewer can tell
+       apart at a glance, which three shades of one red family can't do. */
+    --background: #f5f3f4;
+    --foreground: #0b090a;
+    --card: #ffffff;
+    --card-foreground: #0b090a;
+    --popover: #ffffff;
+    --popover-foreground: #0b090a;
+    --primary: #a4161a;
+    --primary-foreground: #ffffff;
+    --secondary: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
+    --secondary-foreground: #0b090a;
+    --muted: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
+    --muted-foreground: color-mix(in oklch, #0b090a, #b1a7a6 55%);
+    --accent: oklch(0.91 0 0);
+    --accent-foreground: oklch(0.2 0 0);
+    --destructive: #e5383b;
     --success: oklch(0.5 0.14 155);
     --success-foreground: oklch(0.5 0.14 155);
-    --border: oklch(0.9 0.008 276);
-    --input: oklch(0.9 0.008 276);
-    --ring: oklch(0.5 0.21 276);
-    --chart-1: oklch(0.5 0.21 276);
-    --chart-2: oklch(0.62 0.15 200);
-    --chart-3: oklch(0.65 0.17 40);
+    --border: #d3d3d3;
+    --input: #d3d3d3;
+    --ring: #a4161a;
+    --chart-1: #a4161a;
+    --chart-2: oklch(0.6 0.12 190);
+    --chart-3: oklch(0.55 0.17 250);
     --chart-4: oklch(0.5 0.14 155);
-    --chart-5: oklch(0.55 0.02 276);
+    --chart-5: #b1a7a6;
     --radius: 0.85rem;
-    --sidebar: oklch(0.985 0.003 276);
-    --sidebar-foreground: oklch(0.16 0.015 276);
-    --sidebar-primary: oklch(0.5 0.21 276);
-    --sidebar-primary-foreground: oklch(0.98 0.01 276);
-    --sidebar-accent: oklch(0.94 0.03 276);
-    --sidebar-accent-foreground: oklch(0.3 0.08 276);
-    --sidebar-border: oklch(0.9 0.008 276);
-    --sidebar-ring: oklch(0.5 0.21 276);
+    --sidebar: color-mix(in oklch, #ffffff, #d3d3d3 15%);
+    --sidebar-foreground: #0b090a;
+    --sidebar-primary: #a4161a;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.91 0 0);
+    --sidebar-accent-foreground: oklch(0.2 0 0);
+    --sidebar-border: #d3d3d3;
+    --sidebar-ring: #a4161a;
 }
 
 .dark {
-    --background: oklch(0.16 0.008 276);
-    --foreground: oklch(0.95 0.006 276);
-    --card: oklch(0.2 0.01 276);
-    --card-foreground: oklch(0.95 0.006 276);
-    --popover: oklch(0.2 0.01 276);
-    --popover-foreground: oklch(0.95 0.006 276);
-    --primary: oklch(0.72 0.17 276);
-    --primary-foreground: oklch(0.16 0.02 276);
-    --secondary: oklch(0.27 0.012 276);
-    --secondary-foreground: oklch(0.95 0.006 276);
-    --muted: oklch(0.27 0.012 276);
-    --muted-foreground: oklch(0.66 0.015 276);
-    --accent: oklch(0.3 0.05 276);
-    --accent-foreground: oklch(0.92 0.03 276);
-    --destructive: oklch(0.704 0.191 22.216);
+    /* Backgrounds are true neutral gray (zero chroma) to match light mode's
+       treatment -- Black/Carbon Black read with a faint warm/cool tint at
+       close inspection, which is inconsistent with :root's genuinely
+       neutral White Smoke/White. Mahogany Red (primary), Strawberry Red
+       (destructive), and Silver (chart-5) are the named-palette colors
+       still doing real work here; the rest is plain neutral gray. */
+    --background: oklch(0.09 0 0);
+    --foreground: oklch(0.96 0 0);
+    --card: oklch(0.15 0 0);
+    --card-foreground: oklch(0.96 0 0);
+    --popover: oklch(0.15 0 0);
+    --popover-foreground: oklch(0.96 0 0);
+    --primary: #ba181b;
+    --primary-foreground: #ffffff;
+    --secondary: oklch(0.22 0 0);
+    --secondary-foreground: oklch(0.96 0 0);
+    --muted: oklch(0.22 0 0);
+    --muted-foreground: oklch(0.65 0 0);
+    --accent: oklch(0.24 0 0);
+    --accent-foreground: oklch(0.94 0 0);
+    --destructive: #e5383b;
     --success: oklch(0.72 0.15 155);
     --success-foreground: oklch(0.72 0.15 155);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.72 0.17 276);
-    --chart-1: oklch(0.72 0.17 276);
-    --chart-2: oklch(0.72 0.13 200);
-    --chart-3: oklch(0.75 0.16 40);
+    --ring: #ba181b;
+    --chart-1: #ba181b;
+    --chart-2: oklch(0.7 0.11 190);
+    --chart-3: oklch(0.68 0.15 250);
     --chart-4: oklch(0.72 0.15 155);
-    --chart-5: oklch(0.65 0.02 276);
-    --sidebar: oklch(0.19 0.01 276);
-    --sidebar-foreground: oklch(0.95 0.006 276);
-    --sidebar-primary: oklch(0.72 0.17 276);
-    --sidebar-primary-foreground: oklch(0.16 0.02 276);
-    --sidebar-accent: oklch(0.3 0.05 276);
-    --sidebar-accent-foreground: oklch(0.92 0.03 276);
+    --chart-5: #b1a7a6;
+    --sidebar: oklch(0.12 0 0);
+    --sidebar-foreground: oklch(0.96 0 0);
+    --sidebar-primary: #ba181b;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: oklch(0.24 0 0);
+    --sidebar-accent-foreground: oklch(0.94 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.72 0.17 276);
+    --sidebar-ring: #ba181b;
 }
 
 @layer base {
