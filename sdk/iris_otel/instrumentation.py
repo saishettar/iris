@@ -57,8 +57,13 @@ def trace_llm_call(
                 messages = kwargs.get("messages")
                 if messages is not None:
                     span.set_attribute("gen_ai.input.messages", str(messages))
-                if system_instructions:
-                    span.set_attribute("gen_ai.system_instructions", system_instructions)
+                # system_instructions covers a static, decoration-time prompt;
+                # kwargs["system"] covers one built dynamically per call (e.g.
+                # a prompt that interpolates per-request state) -- prefer the
+                # explicit static one if both happen to be given.
+                resolved_system = system_instructions or kwargs.get("system")
+                if resolved_system:
+                    span.set_attribute("gen_ai.system_instructions", str(resolved_system))
 
         def _set_response_attrs(span, result):
             if extract_usage:
