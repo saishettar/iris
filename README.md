@@ -25,7 +25,8 @@ Every LLM app eventually needs the same three things: know what your pipeline ac
 - YAML-driven eval runner (`iris-eval`) with deterministic assertions (`contains`, `regex`, `latency`, `cost`) and LLM-judge assertions (`llm-rubric`, `answer-relevance`) via Claude, plus CLI-level baseline diffing (`--baseline`)
 - Baseline-vs-candidate regression diffing in the dashboard, matched by test description (so added/removed test cases show up correctly, not just reordered rows), with a pass-rate-over-time trend across every run of a suite
 - A GitHub Action (in both dogfooded apps) that runs the eval suite on every PR touching the prompt and posts results as a comment, failing the check on regression
-- React dashboard (an agent overview with real per-agent SQL rollups, trace explorer, trace/span detail with a real proportional-width waterfall, analytics, regression, and a live agent-connection page) wired entirely to the real collector API — no mock data left in the shipped app
+- React dashboard (an agent overview with real per-agent SQL rollups, trace explorer, trace/span detail with a real proportional-width waterfall and an alternate call-tree graph view, analytics, regression, and a live agent-connection page) wired entirely to the real collector API — no mock data left in the shipped app
+- Trace Explorer live-tails new traces over Server-Sent Events (`GET /traces/stream`) the moment their spans are queryable — a real push from the collector, not a poll loop — and pauses itself (with a visible reason, not a silent no-op) rather than show arrivals that might not match an active server-side filter
 - One-command self-hosted setup: `docker compose up -d` brings up Postgres, the collector, *and* the dashboard
 
 ## Tech Stack
@@ -150,6 +151,7 @@ eval/ (iris-eval CLI)               │
                                      │ GET /traces (+filters),
                                      │     /eval-runs, /metrics/summary,
                                      │     /metrics/otel-summary, /metrics/raw
+                                     │ GET /traces/stream (SSE, live tail)
                                      ▼
                               React dashboard
                         (trace explorer/detail,

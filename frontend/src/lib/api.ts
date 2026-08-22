@@ -108,6 +108,17 @@ export function getTraceSpans(traceId: string): Promise<Span[]> {
   return apiFetch<Span[]>(`/traces/${encodeURIComponent(traceId)}`)
 }
 
+// Live tail: one real SSE event per trace the moment its spans are queryable
+// (collector/iris_collector/live.py broadcasts right after insert_spans()),
+// not a poll loop pretending to be live. Returns an unsubscribe function.
+export function subscribeToTraceStream(onTrace: (trace: TraceSummary) => void): () => void {
+  const source = new EventSource(`${API_BASE_URL}/traces/stream`)
+  source.onmessage = (event) => {
+    onTrace(JSON.parse(event.data) as TraceSummary)
+  }
+  return () => source.close()
+}
+
 export function listEvalRuns(limit = 50): Promise<EvalRunSummary[]> {
   return apiFetch<EvalRunSummary[]>(`/eval-runs?limit=${limit}`)
 }

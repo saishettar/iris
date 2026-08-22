@@ -5,11 +5,15 @@ the real OTLP protobuf wire format) is our own code. Listens on the same
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
 
 from fastapi import FastAPI, Request, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from opentelemetry.proto.collector.metrics.v1.metrics_service_pb2 import (
     ExportMetricsServiceRequest,
     ExportMetricsServiceResponse,
@@ -21,6 +25,7 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import (
 from pydantic import BaseModel
 
 from . import db
+from .live import broadcaster
 from .otlp import extract_spans
 from .otlp_metrics import extract_histogram_points
 
@@ -56,6 +61,10 @@ async def ingest_traces(request: Request) -> Response:
     spans = extract_spans(otlp_request)
     db.insert_spans(spans)
     logger.info("ingested %d span(s)", len(spans))
+
+    trace_ids = sorted({s["trace_id"] for s in spans})
+    for trace in db.get_trace_summaries(trace_ids):
+        broadcaster.publish(trace)
 
     response = ExportTraceServiceResponse()
     return Response(content=response.SerializeToString(), media_type="application/x-protobuf")
@@ -97,6 +106,31 @@ def list_traces(
     return db.list_traces(
         limit=limit, model=model, agent=agent, since=since, until=until, has_error=has_error
     )
+
+
+@app.get("/traces/stream")
+async def stream_traces(request: Request) -> StreamingResponse:
+    """Server-Sent Events feed for the dashboard's live-tail view. One
+    real event per trace the moment its spans are queryable -- no polling,
+    no synthetic tick. A ': keep-alive' comment every 15s keeps the
+    connection from being dropped by intermediaries; SSE comment lines
+    (leading ':') are ignored by EventSource per spec."""
+    queue = broadcaster.subscribe()
+
+    async def event_source():
+        try:
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    trace = await asyncio.wait_for(queue.get(), timeout=15)
+                    yield f"data: {json.dumps(jsonable_encoder(trace))}\n\n"
+                except asyncio.TimeoutError:
+                    yield ": keep-alive\n\n"
+        finally:
+            broadcaster.unsubscribe(queue)
+
+    return StreamingResponse(event_source(), media_type="text/event-stream")
 
 
 @app.get("/agents")
