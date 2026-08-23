@@ -8,9 +8,9 @@ Self-hosted, OpenTelemetry-native observability platform for LLM/agent pipelines
 
 ---
 
-## Why
+## Overview
 
-Every LLM app eventually needs the same three things: know what your pipeline actually did (tracing), know whether its output is any good (eval), and know when a prompt or model change made it worse (regression detection). Most tools that do this either invented their own telemetry schema before OpenTelemetry's GenAI conventions existed, or bolted OTel support on after the fact. Iris is built OTel-native from the start — small, but a real, defensible differentiator over prior art like Langfuse.
+Iris covers the three things every LLM app eventually needs: know what your pipeline actually did (tracing), know whether its output is any good (eval), and know when a prompt or model change made it worse (regression detection). It's built OTel-native from the start on the OpenTelemetry GenAI semantic conventions — real `gen_ai.*` spans and metrics over OTLP — rather than an invented schema, which is where most prior art (Langfuse included) bolted OTel support on after the fact.
 
 ## Features
 
