@@ -11,3 +11,6 @@ build/
 .env.*.local
 .DS_Store
 .claude/
+
+# private, not for the repo
+observability_platform_scope.md
