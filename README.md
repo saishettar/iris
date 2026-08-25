@@ -120,15 +120,6 @@ Add `--out results.json --version-tag <label>` and `POST` the file to `/eval-run
 └── observability_platform_scope.md   # Original planning doc (direction, not a spec)
 ```
 
-## Dogfooding results
-
-Iris is instrumented into two other real projects, not synthetic test traffic:
-
-- **[nyu-rag](https://github.com/saishettar/nyu-rag)** — a single-call RAG answer generator. First real eval run against it caught a genuine bug in the eval suite itself: a regex assertion failed on a correct answer because the model's phrasing varied between calls. Replaced with an `llm-rubric` assertion; both cases pass consistently now.
-- **[undercut](https://github.com/saishettar/undercut)** (formerly f1-race-strategy-agent) — a multi-round Claude tool-use agent making live pit-strategy calls. Instrumenting this (a materially different shape than nyu-rag's single call) surfaced two real gaps in the SDK: `trace_llm_call` didn't support `async` target functions, and system-prompt capture only worked for a static, decoration-time string, not one built per call from request state. Both fixed before this integration shipped. Its eval suite runs the agent against real cached race-session data (not synthetic curves), grading both the verdict and whether the reasoning cites the right factors.
-
-Running the real stack locally also caught a bug no mocked test could: the collector had no CORS headers, so `curl`/`TestClient` saw a fine response while an actual browser on the dashboard's own origin got silently blocked. Fixed with `CORSMiddleware`.
-
 ## Architecture
 
 ```
