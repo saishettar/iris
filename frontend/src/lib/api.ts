@@ -36,6 +36,8 @@ export interface AssertionResult {
   assertion_type: string
   passed: boolean
   detail: string
+  name?: string
+  score?: number | null
 }
 
 export interface EvalResult {

@@ -14,6 +14,10 @@ class AssertionResult:
     assertion_type: str
     passed: bool
     detail: str
+    # Set only by llm-rubric/answer-relevance (a real numeric judge rating,
+    # 0-1) -- deterministic assertions stay boolean-only, name stays "".
+    name: str = ""
+    score: float | None = None
 
 
 def check_contains(output: str, assertion: Assertion) -> AssertionResult:

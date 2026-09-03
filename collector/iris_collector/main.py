@@ -221,6 +221,8 @@ class AssertionResultIn(BaseModel):
     assertion_type: str
     passed: bool
     detail: str
+    name: str = ""
+    score: float | None = None
 
 
 class EvalCaseResultIn(BaseModel):

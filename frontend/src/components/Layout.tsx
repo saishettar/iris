@@ -11,6 +11,7 @@ import {
   Moon,
   Plug,
   Search,
+  Star,
   Sun,
 } from "lucide-react"
 import { NavLink, Outlet, useLocation } from "react-router-dom"
@@ -32,6 +33,7 @@ const NAV_LINKS = [
   { to: "/sessions", label: "Sessions", icon: MessagesSquare },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/regression", label: "Regression", icon: GitCompare },
+  { to: "/scores", label: "Scores", icon: Star },
   { to: "/alerts", label: "Alerts", icon: Bell },
   { to: "/connect", label: "Connect", icon: Plug },
 ]
@@ -87,6 +89,7 @@ function activeLabel(pathname: string): string {
   if (pathname === "/sessions") return "Sessions"
   if (pathname === "/analytics") return "Analytics"
   if (pathname === "/regression") return "Regression"
+  if (pathname === "/scores") return "Scores"
   if (pathname === "/alerts") return "Alerts"
   if (pathname === "/connect") return "Connect"
   return "Iris"
