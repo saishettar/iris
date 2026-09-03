@@ -70,7 +70,7 @@ export function Sessions() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {sessions.map((session) => (
           <Link key={session.session_id} to={`/traces?session=${encodeURIComponent(session.session_id)}`}>
-            <Card className="h-full bg-card/80 transition-colors hover:bg-accent/40">
+            <Card className="h-full transition-colors hover:bg-accent/40">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">

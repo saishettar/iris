@@ -32,10 +32,10 @@ function Stat({
   icon: typeof Activity
 }) {
   return (
-    <Card className="bg-card/80">
+    <Card>
       <CardContent className="p-5">
-        <div className="mb-5 flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {label}
           </span>
           <Icon className="size-4 text-primary" />
@@ -119,7 +119,7 @@ export function Analytics() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Trace volume</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Traces per day, last 14 days</p>
@@ -135,7 +135,7 @@ export function Analytics() {
                       {metrics.trace_volume.map((d) => (
                         <div
                           key={d.day}
-                          className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          className="max-w-12 flex-1 bg-[var(--chart-1)]/75 transition-colors hover:bg-[var(--chart-1)]"
                           style={{ height: `${(d.count / maxVolume) * 100}%` }}
                           title={`${formatDay(d.day)}: ${d.count}`}
                         />
@@ -150,7 +150,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Model usage</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Chat-span share by model</p>
@@ -168,7 +168,7 @@ export function Analytics() {
                           <span className="font-mono text-muted-foreground">{percent}%</span>
                         </div>
                         <div className="h-2 bg-muted">
-                          <div className="h-full bg-primary" style={{ width: `${percent}%` }} />
+                          <div className="h-full bg-[var(--chart-1)]" style={{ width: `${percent}%` }} />
                         </div>
                       </div>
                     )
@@ -177,7 +177,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Latency percentiles</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">Across all chat spans</p>
@@ -190,7 +190,7 @@ export function Analytics() {
                     {(["p50", "p95", "p99"] as const).map((key) => (
                       <div key={key} className="flex flex-1 flex-col items-center gap-2">
                         <div
-                          className="w-full bg-primary/75"
+                          className="w-full bg-[var(--chart-1)]/75"
                           style={{ height: `${((percentiles[key] ?? 0) / maxPercentile) * 180}px` }}
                         />
                         <span className="text-xs uppercase text-muted-foreground">{key}</span>
@@ -202,7 +202,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Latency over time</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">P50 per day, last 14 days</p>
@@ -216,7 +216,7 @@ export function Analytics() {
                       {metrics.latency_by_day.map((d) => (
                         <div
                           key={d.day}
-                          className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                          className="max-w-12 flex-1 bg-[var(--chart-1)]/75 transition-colors hover:bg-[var(--chart-1)]"
                           style={{ height: `${(d.p50 / maxDailyP50) * 100}%` }}
                           title={`${formatDay(d.day)}: ${formatMs(d.p50)}`}
                         />
@@ -233,7 +233,7 @@ export function Analytics() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Cost by model</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -291,7 +291,7 @@ export function Analytics() {
                   <Stat label="Avg duration" value={formatMs((otel.avg_duration_s ?? 0) * 1000)} icon={Gauge} />
                 </div>
 
-                <Card className="bg-card/80">
+                <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Operations per hour</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -309,7 +309,7 @@ export function Analytics() {
                           {otel.operations_by_hour.map((b) => (
                             <div
                               key={b.bucket}
-                              className="max-w-12 flex-1 bg-primary/75 transition-colors hover:bg-primary"
+                              className="max-w-12 flex-1 bg-[var(--chart-1)]/75 transition-colors hover:bg-[var(--chart-1)]"
                               style={{ height: `${(b.operation_count / maxHourlyOps) * 100}%` }}
                               title={`${formatHour(b.bucket)}: ${b.operation_count}`}
                             />
@@ -326,7 +326,7 @@ export function Analytics() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card/80">
+                <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Token usage</CardTitle>
                     <p className="mt-1 text-sm text-muted-foreground">

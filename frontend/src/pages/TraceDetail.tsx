@@ -186,7 +186,7 @@ function AnnotationPanel({ traceId }: { traceId: string }) {
   }
 
   return (
-    <Card className="bg-card/80">
+    <Card>
       <CardHeader>
         <CardTitle className="text-base">Feedback</CardTitle>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -227,7 +227,7 @@ function AnnotationPanel({ traceId }: { traceId: string }) {
         {snippetError && <p className="text-sm text-destructive">{snippetError}</p>}
         {snippet && (
           <div className="relative">
-            <pre className="max-h-64 overflow-auto rounded-xl border border-border bg-muted/40 p-4 font-mono text-[12px] leading-relaxed text-foreground">
+            <pre className="max-h-64 overflow-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[12px] leading-relaxed text-foreground">
               <code>{snippet}</code>
             </pre>
             <button
@@ -314,7 +314,7 @@ export function TraceDetail() {
         <ChevronLeft className="size-4" /> Back to traces
       </Link>
 
-      <Card className="bg-card/80">
+      <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
           <div>
             <CardTitle className="text-base">{agent ?? root?.name ?? "Trace detail"}</CardTitle>
@@ -369,7 +369,7 @@ export function TraceDetail() {
           {rows.length > 0 && view === "graph" && <TraceGraph spans={spans} />}
 
           {rows.length > 0 && view === "waterfall" && (
-            <div className="overflow-hidden rounded-xl border border-border">
+            <div className="overflow-hidden rounded-lg border border-border">
               <div className="grid grid-cols-[minmax(160px,280px)_1fr] border-b border-border bg-muted/50 px-3 py-2">
                 <span className="text-xs font-medium text-muted-foreground">Span</span>
                 <div className="flex items-center gap-2">
@@ -394,7 +394,7 @@ export function TraceDetail() {
                   className="grid grid-cols-[minmax(160px,280px)_1fr] items-center gap-2 border-b border-border/60 px-3 py-2.5 last:border-0 hover:bg-accent/40"
                 >
                   <div className="flex min-w-0 items-center gap-2" style={{ paddingLeft: depth * 16 }}>
-                    <span className={`size-1.5 shrink-0 rounded-full ${isError ? "bg-destructive" : "bg-primary"}`} />
+                    <span className={`size-1.5 shrink-0 rounded-full ${isError ? "bg-destructive" : "bg-[var(--chart-1)]"}`} />
                     <span className="truncate text-sm">{span.name}</span>
                     {isError && (
                       <Badge variant="destructive" className="shrink-0">
@@ -405,7 +405,7 @@ export function TraceDetail() {
                   <div className="flex items-center gap-2">
                     <div className="relative h-5 flex-1">
                       <div
-                        className={`absolute inset-y-0 rounded-sm ${isError ? "bg-destructive" : "bg-primary"}`}
+                        className={`absolute inset-y-0 rounded-sm ${isError ? "bg-destructive" : "bg-[var(--chart-1)]"}`}
                         style={{ left: `${offsetPct}%`, width: `${widthPct}%` }}
                       />
                     </div>

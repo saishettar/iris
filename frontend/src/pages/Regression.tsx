@@ -22,10 +22,10 @@ function Stat({
   icon: typeof Activity
 }) {
   return (
-    <Card className="bg-card/80">
+    <Card>
       <CardContent className="p-5">
-        <div className="mb-5 flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {label}
           </span>
           <Icon className="size-4 text-primary" />
@@ -197,7 +197,7 @@ export function Regression() {
           </div>
 
           {trendRuns.length > 1 && (
-            <Card className="bg-card/80">
+            <Card>
               <CardHeader>
                 <CardTitle className="text-base">Pass rate over time</CardTitle>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -212,7 +212,9 @@ export function Regression() {
                       <div
                         key={run.run_id}
                         className={`max-w-12 flex-1 transition-colors ${
-                          run.run_id === candidateId ? "bg-primary" : "bg-primary/50 hover:bg-primary/75"
+                          run.run_id === candidateId
+                            ? "bg-[var(--chart-1)]"
+                            : "bg-[var(--chart-1)]/50 hover:bg-[var(--chart-1)]/75"
                         }`}
                         style={{ height: `${Math.max(percent, 2)}%` }}
                         title={`${run.version_tag ?? run.run_id.slice(0, 8)}: ${run.passed_count}/${run.test_count}`}
@@ -228,7 +230,7 @@ export function Regression() {
             </Card>
           )}
 
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">Regression comparison</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">

@@ -13,7 +13,7 @@ import { API_BASE_URL, listTraces, type TraceSummary } from "@/lib/api"
 
 function CodeBlock({ children }: { children: string }) {
   return (
-    <pre className="overflow-x-auto rounded-xl border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed text-foreground">
+    <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-4 font-mono text-[13px] leading-relaxed text-foreground">
       <code>{children}</code>
     </pre>
   )
@@ -92,7 +92,7 @@ export function Connect() {
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-4">
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader className="flex flex-row items-center gap-3 space-y-0">
               <StepNumber n={1} />
               <CardTitle className="text-base">Install the SDK</CardTitle>
@@ -102,7 +102,7 @@ export function Connect() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader className="flex flex-row items-center gap-3 space-y-0">
               <StepNumber n={2} />
               <CardTitle className="text-base">Point it at this collector</CardTitle>
@@ -112,7 +112,7 @@ export function Connect() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader className="flex flex-row items-center gap-3 space-y-0">
               <StepNumber n={3} />
               <CardTitle className="text-base">Wrap the call</CardTitle>
@@ -132,7 +132,7 @@ export function Connect() {
         </div>
 
         <div className="min-w-0 space-y-4">
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">Connection status</CardTitle>
             </CardHeader>
@@ -167,7 +167,7 @@ export function Connect() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card/80">
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">Real examples</CardTitle>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -179,7 +179,7 @@ export function Connect() {
                 href="https://github.com/saishettar/nyu-rag"
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2.5 text-sm hover:bg-accent/60"
+                className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 text-sm hover:bg-accent/60"
               >
                 <span>
                   <span className="font-medium">nyu-rag</span>
@@ -191,7 +191,7 @@ export function Connect() {
                 href="https://github.com/saishettar/undercut"
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-between rounded-xl border border-border/60 px-3 py-2.5 text-sm hover:bg-accent/60"
+                className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5 text-sm hover:bg-accent/60"
               >
                 <span>
                   <span className="font-medium">undercut</span>
