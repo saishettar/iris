@@ -4,223 +4,262 @@
 
 ## World
 
-Dense, developer-tool-native dashboard in the Langfuse/Datadog/Honeycomb tradition — pinned
-directly by the user rather than chosen from a concept tournament. Persistent left sidebar,
-breadcrumb header, data-dense tables, a real proportional-width trace waterfall. Dark-first,
-light available via a working toggle (`useTheme` in `Layout.tsx`, persisted to
-`localStorage["iris-theme"]`, applied pre-paint by an inline script in `index.html` to avoid
-a flash of the wrong theme).
+Restrained, hairline, data-forward dashboard in the Langfuse tradition — brief-pinned directly
+by the user's own Langfuse screenshots (`.impeccable/surfaces/frontend-src-components-layout-tsx.md`),
+not chosen from a concept tournament. Color lives in the data (chart series), not the chrome.
+Light-first now: `frontend/index.html`'s pre-paint script defaults `dark` to `false` when
+`localStorage["iris-theme"]` is unset, inverting the previous dark-first default. Dark mode
+remains a full, working second theme via the same `useTheme` hook in `Layout.tsx`.
 
-## Material update: richer cards, pinned to a reference
-
-A user-supplied screenshot (a crypto staking dashboard, "Stakent") pinned a richer material
-language than the initial flat/bordered Langfuse-style pass: larger corner radii, real soft
-card elevation, colorful per-item icon badges, inline sparklines on stat cards, and one
-gradient "promo" card as a deliberate accent. Per the brief-wins principle, this pinned
-reference's concrete visual grammar was adopted -- translated onto Iris's real data and IA,
-never copied literally (no staking/wallet content, obviously).
-
-- `--radius` raised from `0.5rem` to `0.85rem` (`index.css`) -- cascades to every
-  `rounded-*` utility that reads the theme's radius tokens, including buttons and inputs.
-- `Card` (`components/ui/card.tsx`) now ships `rounded-2xl` and a real `shadow-lg
-  shadow-black/20` by default, replacing the previous flat `ring-1` only. Every page's
-  `border-border/70 bg-card/70 shadow-none` override (20 occurrences) was removed in favor
-  of the component's own default, plus `bg-card/80` where a touch of translucency reads well.
-  This is a real shift from the initial Langfuse pass's deliberately flat cards -- the pinned
-  reference asked for depth, so depth is what shipped; still Restrained-but-committed on
-  color, not Full-palette or Drenched.
-- Filter controls (`TraceExplorer`, `Regression`) became pill-shaped (`rounded-full`,
-  `bg-muted/40`) rather than square selects, matching the reference's chip-style filters.
-- Overview's agent cards cycle through four badge tones (`AGENT_TONES` -- primary plus
-  `--chart-2/3/4`) instead of one repeated color, and its "Traces" / "P50 latency" stat cards
-  carry a real inline `Sparkline` built from the same `trace_volume` / `latency_by_day` series
-  Analytics already fetches -- not decorative, and it renders nothing (not a flat line) when
-  fewer than two data points exist, which is the actual state of this project's own demo data
-  today. A gradient promo tile ("Connect another agent") closes the agent grid, translating
-  the reference's gradient CTA panel into a real onboarding nudge rather than decoration.
+This replaced the prior "Stakent"-pinned material update (larger radii, `shadow-lg`, colorful
+badge tones, sparklines, gradient promo tile) in full — see Superseded below. It did not touch
+`TraceGraph.tsx`'s call-tree layout, the trace waterfall's proportional-bar logic, or the native
+form-element scope boundary, all of which carry forward unchanged from before this pass.
 
 ## Palette
 
-Restrained-but-committed: near-zero-chroma neutrals (hue matches the accent) plus one real
-accent, replacing the previous fully-grayscale (`oklch(x 0 0)`) palette.
+Near-zero-chroma neutrals (warm, hue ~75) plus a near-black ink primary — no saturated brand
+hue in the chrome at all. This is a real departure from every previous pass (amber, then
+Mahogany Red), which each put a saturated accent on `--primary`, active nav, and focus rings.
+Saturation now lives only in `--chart-1..5` and `--ring`.
 
-- **Accent (`--primary`)**: warm amber/gold, hue ~80 — `oklch(0.5 0.16 78)` light,
-  `oklch(0.74 0.15 85)` dark. Used for active nav, focus rings, primary chart series, links.
-  Originally shipped as indigo/violet (hue 276); replaced after the user called it out as
-  the default "AI/vibe-coded app" accent color -- a real, recognizable cliché, not a matter
-  of taste to defend. Amber ties back to the brand rationale instead: the iris regulates how
-  much light gets through, and gold/amber is the actual color of camera aperture rings and
-  instrument-panel gauges, not a category default for dev tools. Every neutral token's hue
-  moved from 276 to 80 too, so the whole theme is warm-tinted rather than cool-tinted -- a
-  find-and-replace of one number would have left a purple-tinted "gray" underneath a gold
-  accent, which reads as an oversight the moment someone looks closely.
-- **Success**: `oklch(0.5 0.14 155)` light / `oklch(0.72 0.15 155)` dark — real pass/fixed
-  states (`Badge variant="success"`), previously rendered as plain gray.
-- **Destructive**: unchanged from the original shadcn defaults.
-- Chart tokens (`--chart-1..5`): 1 mirrors primary (amber), 2 is teal (190), 3 is blue (250,
-  deliberately not orange/red -- would have collided with amber or destructive), 4 is green
-  (155, matches success), 5 is neutral gray.
-- The Overview promo tile's gradient and `public/favicon.svg` (a static hex copy, since a
-  favicon has no page CSS context) were hardcoded to the old purple and needed manual
-  updates -- token changes don't reach hardcoded arbitrary-value colors, which is exactly how
-  the favicon went unnoticed as a leftover Vite default for as long as it did.
+- **`--primary`**: near-black ink, `oklch(0.17 0.006 60)` light / nearly-white `oklch(0.96 0 0)`
+  dark. Used for primary buttons, the sidebar logo badge, active-tab underlines, and inline
+  links — never for a "brand color" moment; it is typographic ink pressed into a background
+  fill, not a hue choice.
+- **Ground**: warm off-white `oklch(0.985 0.004 75)` (light) / near-black `oklch(0.14 0 0)`
+  (dark) background, with card one step lighter (`oklch(1 0 0)` light / `oklch(0.19 0 0)` dark)
+  — same raised-card hierarchy direction every prior palette in this project used.
+- **Success**: `oklch(0.5 0.14 155)` light / `oklch(0.72 0.15 155)` dark — pass/fixed states,
+  the self-hosted status dot, unchanged in hue from the Mahogany-Red-era value, retained because
+  it already sat outside that palette's red family.
+- **Destructive**: `oklch(0.55 0.2 25)` light / `oklch(0.62 0.2 25)` dark — a plain red, no
+  longer sharing a hue family with primary (primary carries no hue at all now), which resolves
+  the open tension the Mahogany Red palette flagged (brand-red sitting adjacent to error-red on
+  the same chart).
+- **Chart tokens (`--chart-1..5`)**: periwinkle-blue (`oklch(.62 .19 265)`), gold
+  (`oklch(.78 .13 80)`), teal (`oklch(.65 .11 190)`), green (`oklch(.55 .1 155)`, matches
+  success), neutral gray (`oklch(.6 .01 60)`). These five are the only saturated color budget on
+  any page — chart bars/lines, waterfall bars, and the eval-score heatmap in `Scores.tsx` all
+  draw from this set, never from `--primary`.
+- **`--ring`**: shares chart-1's periwinkle, used for focus rings and the sidebar-ring token —
+  the one place a saturated hue appears outside a chart or badge context, and only on
+  keyboard-focus interaction, not at rest.
+- **`--radius`**: `0.5rem`, down from the Stakent pass's `0.85rem` — back to the tighter,
+  hairline-card scale this world's cards actually use.
+
+### Named Rules
+
+**The Chrome-Is-Neutral Rule.** `--primary`, `--secondary`, `--muted`, `--accent`, and every
+sidebar/border/input token carry zero or near-zero chroma. Saturation is reserved for
+`--chart-1..5` and appears only inside data visualizations, status dots, and badge fills like
+`bg-primary/15` icon badges (which read as tinted ink, not brand color, since `--primary` itself
+is neutral). If a new surface needs to draw attention to a UI element rather than a data value,
+reach for weight or an ink fill, not a hue.
+
+### Superseded: amber accent, and Black / Mahogany Red
+
+Both prior identities — the amber/gold accent (`oklch(.5 .16 78)`) and the later
+Black / Carbon Black / Mahogany Red / Strawberry Red named palette (with its "Stakent"-pinned
+material update: `--radius: 0.85rem`, `shadow-lg shadow-black/20` cards, colorful per-agent
+badge tones, sparkline stat cards, gradient promo tile) — were fully replaced by the
+Langfuse-pinned world above. Left out of the current sections rather than kept as history noise,
+per this file's own established convention; their full rationale remains below for provenance.
+
+<details>
+<summary>Prior palette history (amber, then Black / Mahogany Red)</summary>
+
+**Amber accent** (`--primary` `oklch(0.5 0.16 78)` light / `oklch(0.74 0.15 85)` dark):
+replaced an original indigo/violet (hue 276) accent after it was called out as the default
+"AI/vibe-coded app" color. Every neutral token's hue moved from 276 to 80 alongside it, so the
+whole theme was warm-tinted rather than cool-tinted.
+
+**Black / Mahogany Red** (`--primary` Mahogany Red `#a4161a`/`#ba181b`, `--destructive`
+Strawberry Red `#e5383b` kept deliberately distinct from primary, backgrounds Black
+`#0b090a`/Carbon Black `#161a1d` corrected to true zero-chroma neutral gray after review, chart
+2-4 kept outside the red family for viewer legibility): a second, larger user-specified named
+palette, this time applied to both themes rather than dark-only. Flagged, not silently resolved,
+an open tension for an observability tool where a red brand accent sits visually adjacent to
+red error/fail badges (`Regression.tsx`'s "Pass rate over time" bars beside `Fail`/`Regressed`
+badges) — the current ink-primary world resolves this tension by removing chroma from the
+primary token entirely rather than tuning the two reds further apart.
+
+**Stakent material update** (paired with Black / Mahogany Red): `--radius` raised to `0.85rem`,
+`Card` shipped `rounded-2xl` + real `shadow-lg shadow-black/20`, pill-shaped filters, per-agent
+badge tones (`AGENT_TONES`), inline `Sparkline` on Overview stat cards, gradient promo tile.
+Pinned by a user-supplied "Stakent" crypto-staking-dashboard screenshot as a richer material
+language than the original flat Langfuse pass. Superseded when the Langfuse screenshots were
+re-pinned as the authoritative reference and cards returned to hairline (`border-border
+shadow-sm rounded-lg`, no `shadow-lg`). Pill-shaped filters and inline sparklines were the two
+elements of this update that carried forward — they matched the Langfuse screenshots
+independently, not because the Stakent pass introduced them.
+
+</details>
 
 Tokens live in `frontend/src/index.css`, `:root` (light) and `.dark`.
 
-### Superseded: Ink Black / Prussian Blue, and the amber accent
-
-Both were replaced in the same branch by the Black / Mahogany Red palette below before
-either shipped to `main` -- left out of this file rather than kept as history noise.
-
-## Current palette: Black / Mahogany Red
-
-A second, larger user-specified named palette (Black, Carbon Black, Dark Garnet, Mahogany
-Red x2, Strawberry Red, Silver, Dust Grey, White Smoke, White) replaced both the amber
-accent and the ink-navy dark base, for both themes this time, not dark-only. Not every
-supplied swatch is used -- explicitly permitted ("don't feel the need to use all of them")
--- and the curation itself is a real decision worth recording:
-
-- **`--primary`**: Mahogany Red, the two supplied shades split by theme -- `#a4161a`
-  (darker, light mode) and `#ba181b` (brighter, dark mode) -- same light/dark-variant
-  pattern used for every accent this project has shipped.
-- **`--destructive`**: Strawberry Red `#e5383b`, deliberately a *different* red from
-  primary rather than reusing Mahogany. Collapsing brand-accent and error-state into one
-  red would erase the distinction between "this is the product's color" and "this is
-  broken" -- two named reds in the same supplied palette made keeping that distinction
-  free.
-- **Backgrounds**: Black `#0b090a` / Carbon Black `#161a1d` (dark mode background/card);
-  White Smoke `#f5f3f4` / White `#ffffff` (light mode background/card) -- card is the
-  lighter, "raised" tone in both themes, same hierarchy direction as every palette this
-  project has used.
-- **Neutrals**: Silver `#b1a7a6` and Dust Grey `#d3d3d3` cover muted text and borders in
-  light mode; derived dark-mode surfaces (`--secondary`, `--muted`, `--sidebar`) are
-  `color-mix()` steps off Carbon Black, and hover/accent surfaces blend in Dark Garnet
-  (`color-mix(in oklch, #161a1d, #660708 35%)`) rather than a plain lighter gray -- ties
-  the reds into the neutral ramp itself instead of leaving them isolated to primary/
-  destructive, the same reasoning that drove retinting every neutral in the amber pass.
-- **Chart series 2-4** (teal/blue/green) stay outside this red family on purpose: a
-  data-viz series needs colors a viewer can tell apart at a glance, and three shades of one
-  red hue can't do that. Chart 1 and chart-5 do use the family (Mahogany, Silver).
-
-**Open tension, flagged rather than silently resolved:** this is an observability tool,
-where red carries unusually strong, specific meaning (something failed). Making the brand
-accent itself a red means ordinary volume/latency chart bars, the active-nav highlight, and
-default-state icons all render in a color family adjacent to the actual error state
-(Strawberry Red badges on Regression/Trace Detail). Verified this is a real, visible
-tension, not a hypothetical: `Regression.tsx`'s "Pass rate over time" trend bars render
-Mahogany Red immediately beside literal `Fail`/`Regressed` badges in Strawberry Red. The
-two reds are visually distinguishable (deeper/muted vs. bright/saturated) and this was
-executed as specified, not overridden -- but it's the one place this palette asks more of
-the viewer than the previous two did, and is worth deciding deliberately rather than
-inheriting by default.
-
-### Follow-up: neutral dark backgrounds, and a toned-down promo tile
-
-Two corrections after review:
-
-- Dark mode's `--background`/`--card`/`--popover`/`--secondary`/`--muted`/`--accent`/
-  `--sidebar*` moved from the literal Black/Carbon Black hex to true zero-chroma neutral
-  gray (`oklch(L 0 0)`). Black `#0b090a` and Carbon Black `#161a1d` each carry a faint,
-  *different* tint (warm and cool respectively) once you look closely -- inconsistent with
-  each other and with `:root`'s genuinely neutral White Smoke/White. Mahogany Red
-  (primary), Strawberry Red (destructive), and Silver (chart-5) still do real work; every
-  background/surface token is now plain neutral.
-- The Overview promo tile's gradient was a full-strength Mahogany-to-Black block with a
-  matching glow shadow -- too bold sitting among otherwise-quiet neutral cards, more so
-  now that the backgrounds themselves went neutral. Rebuilt with `color-mix(in oklch,
-  var(--color-primary), var(--color-card) 82%)` fading to the plain card color: a
-  theme-relative, barely-there tint instead of a hand-picked-per-theme literal block, so it
-  self-corrects if the palette changes again rather than needing two more manual edits. The
-  icon badge and body text dropped to the same `bg-primary/15 text-primary` /
-  `text-foreground` treatment every other agent card already uses; only the "Get started"
-  button keeps a solid `bg-primary` fill, so exactly one element on the tile carries full
-  accent strength instead of the whole card.
-- Light mode's `--accent`/`--accent-foreground` and `--sidebar-accent`/
-  `--sidebar-accent-foreground` (hover and selected states, including the sidebar nav) were
-  still a deliberate 8%-Mahogany tint left over from the Black/Mahogany palette pass --
-  inconsistent with dark mode's now-neutral accent tokens. Both themes use plain
-  `oklch(L 0 0)` for hover/selected now (`0.91`/`0.2` light, `0.24`/`0.94` dark), matching
-  the same symmetry dark mode already had (`--accent` and `--sidebar-accent` share one
-  value, not two hand-picked ones). The request named the sidebar specifically; the general
-  `--accent` token got the same fix since it was the identical leftover tint, not a
-  separate decision.
-
 ## Type
 
-- **UI text**: Geist Sans (`Geist Variable`, unchanged) — a real workhorse face, kept as-is.
-- **Data/code**: Geist Mono (`@fontsource-variable/geist-mono`, new) — span/trace IDs,
-  timestamps, code blocks, the connector CLI snippets. Never used as a "technical" costume;
-  only for actual code, IDs, or measurement.
+- **UI text**: Geist Sans (`Geist Variable`) — unchanged across every pass this project has
+  shipped, a real workhorse face.
+- **Data/code**: Geist Mono (`Geist Mono Variable`) — span/trace IDs, timestamps, code blocks,
+  the connector CLI snippets. Never a "technical" costume; only for actual code, IDs, or
+  measurement.
+- **Hierarchy actually used**: no display/headline scale — this is a dense dashboard, not an
+  editorial surface. Page titles in the header are `text-sm font-medium`; card titles
+  (`CardTitle`) are `text-base font-medium`; body/table text is `text-sm`; stat numbers on
+  Home/Overview/Dashboards run larger (`text-2xl`–`text-3xl` `font-semibold`) as the one place
+  type carries visual weight. Underlined text-tabs (`TextTabs` in `Home.tsx`, similar patterns
+  in `Scores.tsx`/`Dashboards.tsx`) use `text-sm`, with the active tab distinguished by
+  `border-b-2 border-foreground font-medium` — never by color.
 
-## Browser surfaces
+## Layout
 
-Themed rather than left as OS chrome: `::selection`, scrollbar (WebKit + `scrollbar-color`),
-`caret-color`, checkbox/radio `accent-color`, `font-variant-numeric: tabular-nums` on tables.
-See the `@layer base` block in `index.css`.
+Fixed icon-only nav rail (`w-16`, `RAIL_WIDTH` in `Layout.tsx`) replaces the prior labeled,
+collapsible sidebar — no text labels, no expand/collapse toggle, just `title`/`aria-label` on
+each icon link and a plain ink-tinted pill (`bg-sidebar-accent`) for the active route. Header is
+a single `h-14` bar: page title on the left (from `activeLabel(pathname)`), a self-hosted status
+badge and one icon button (Connect) on the right — no breadcrumb. Main content sits in a
+`max-w-[1500px]` container with `p-6 lg:p-8` padding, offset by `pl-16` for the rail. Filter
+controls across `TraceExplorer`, `Regression`, `Alerts`, `Dashboards`, `Scores` are consistently
+pill-shaped (`h-9 rounded-full border border-input bg-muted/40`), not square selects — the one
+layout convention that carried forward unchanged from the Stakent-era update because it also
+matches the Langfuse reference independently.
+
+## Elevation & Depth
+
+Flat by default: `Card` (`components/ui/card.tsx`) ships `rounded-lg border border-border
+bg-card shadow-sm` — a hairline border plus a minimal 1px-scale shadow, not the `shadow-lg
+shadow-black/20` the prior Stakent-pinned pass used. Depth reads from the border and the
+card/background lightness step, not from cast shadow. `TraceGraph.tsx`'s custom `SpanNode`
+components were brought in line with this same hairline treatment (`rounded-lg border bg-card
+shadow-sm`) as part of this restyle, not left on the old `shadow-lg` material — there is one
+elevation system, not two.
+
+## Shapes
+
+`--radius: 0.5rem` (down from `0.85rem`) cascades through Tailwind's `rounded-*` scale via the
+`@theme inline` block's `--radius-sm/md/lg/xl/2xl/3xl/4xl` derivations — buttons (`rounded-lg`),
+cards (`rounded-lg`), inputs, and badges all read this one token. Filter pills and stat/status
+badges use `rounded-full` regardless of the base radius token, a deliberate exception for
+chip-like controls, not an inconsistency.
+
+## Components
+
+### Buttons
+- **Shape**: `rounded-lg` (reads `--radius`).
+- **Primary**: `bg-primary text-primary-foreground hover:bg-primary/80` — ink fill, not a brand
+  hue; `h-8` default, `px-2.5`.
+- **Outline / Secondary / Ghost / Destructive / Link**: `destructive` uses a tinted
+  `bg-destructive/10 text-destructive` at rest (not a solid fill) with `/20` on hover — the only
+  variant that stays visibly "loud" without full saturation.
+
+### Cards
+- **Corner style**: `rounded-lg` (0.5rem).
+- **Background**: `bg-card` — one lightness step above page background in both themes.
+- **Shadow strategy**: `shadow-sm` only; see Elevation & Depth.
+- **Border**: `border border-border`, a true hairline (`oklch(0.9 0.004 75)` light /
+  `oklch(1 0 0 / 10%)` dark) — this border is the primary depth cue, not a supplement to shadow.
+- **Internal padding**: `--card-spacing` token, `--spacing(4)` default / `--spacing(3)` for
+  `size="sm"`.
+
+### Navigation (icon rail)
+- **Style**: `w-16` fixed rail, icons only (`size-4.5` Lucide icons in `size-10` hit targets),
+  `title`/`aria-label` carry the label text instead of visible labels.
+- **Active state**: `bg-sidebar-accent text-sidebar-accent-foreground` pill — plain ink tint,
+  never a colored highlight.
+- **Hover**: `hover:bg-sidebar-accent/60 hover:text-foreground` on inactive links.
+- **No mobile-specific treatment**: the rail is fixed at all viewport widths; content reflows
+  under it via the `pl-16` offset and responsive grid columns on individual pages.
+
+### Text tabs (signature pattern)
+`TextTabs` (`Home.tsx`) and equivalent inline patterns in `Scores.tsx`/`Dashboards.tsx`: a row
+of buttons under one shared `border-b border-border`, active tab gets `border-b-2
+border-foreground font-medium text-foreground` via `-mb-px`, inactive tabs are
+`border-transparent text-muted-foreground`. Underline, never a filled pill or background swap —
+matches the pinned Langfuse reference's tab treatment directly.
+
+### Filter pills
+`h-9 rounded-full border border-input bg-muted/40 px-4 text-sm`, `focus:ring-2 focus:ring-ring`.
+Used for every filter control across Traces, Regression, Alerts, Dashboards, and Scores' new
+date-range filter — one consistent chip-select shape rather than native `<select>` chrome, even
+though the underlying element (`Alerts.tsx`, `Dashboards.tsx` widget forms) is often a real
+native `<select>` themed to match.
+
+### Charts
+Bars/lines/heatmap cells draw exclusively from `--chart-1..5`; never `--primary`. Daily bar
+charts cap individual bars at `max-w-12` inside a `flex-1` track so a single day of data (this
+project's own common dev/demo state) doesn't render as one solid block. This pattern predates
+the current world and still applies to every daily/hourly chart added since, including Home's
+model-latency and spans-by-type charts.
 
 ## Signature mark
 
-An aperture/iris glyph (`IrisMark` in `Layout.tsx`) — a pupil with eight radial
-blades, replacing a lettermark ("i" in a rounded square) that was as generic as a
-logo gets. Matches the brand rationale in `PRODUCT.md` (the part of the eye that
-adapts to observe) and doubles as a lens/observability motif. Used in exactly two
-places: the sidebar badge and `public/favicon.svg` (a static hex-color copy, since
-a favicon renders with no page CSS context) — the favicon itself was still shipping
-Vite's default gradient-blob template asset before this pass, unrelated to the
-product and never replaced.
+An aperture/iris glyph (`IrisMark` in `Layout.tsx`) — a pupil with eight radial blades, not a
+lettermark — carried forward unchanged in logic through this restyle. Matches the brand
+rationale in `PRODUCT.md` (the part of the eye that adapts to observe) and doubles as a
+lens/observability motif. Used in exactly two places: the nav rail's logo badge (now
+`bg-primary text-primary-foreground` — ink, not a brand hue) and `public/favicon.svg` (updated
+to the new ink color as a static hex copy, since a favicon renders with no page CSS context).
 
 ## Signature piece: the trace waterfall
 
-`TraceDetail.tsx` replaced a flat, unordered span list with a real proportional-width
-waterfall: each span's bar is positioned/sized from its actual `start_time`/`end_time`
-against the trace's total span, indented by real parent-child depth (walked via
-`parent_span_id`). Duration labels live in a fixed-width column to the right of the bar
-track, never overlaid on the bar itself — an earlier version overlaid the label and produced
-unreadable low-contrast text on wide bars; the fixed column is the fix, not a font-weight
-tweak.
+`TraceDetail.tsx`'s proportional-width waterfall (each span's bar positioned/sized from its
+real `start_time`/`end_time` against the trace's total span, indented by real parent-child
+depth) is unchanged in logic through this restyle — only its bar fill moved from `--primary` to
+`--chart-1`, since a duration bar is data, not chrome. Duration labels stay in a fixed-width
+column beside the bar, never overlaid on it.
 
 ## Trace graph view
 
-`TraceGraph.tsx` (`@xyflow/react`) adds a second view on Trace Detail, toggled against
-the waterfall via a pill control. OTel spans form a strict tree (one `parent_span_id`
-each), never an arbitrary DAG, so this lays out a real call tree -- a hand-rolled
-top-down layout (children's x is the average of their own children's x, y from depth),
-not a general graph layout library. The waterfall answers "where did the time go";
-this answers "what called what," which matters more on branchier, multi-round
-tool-use traces where depth-indentation alone gets hard to scan. Custom `SpanNode`
-components reuse the same card language (`rounded-xl`, `shadow-lg shadow-black/20`,
-primary/destructive status dot) rather than React Flow's default node styling;
-`colorMode` follows the app's own dark/light toggle via a `MutationObserver` on
-`document.documentElement`'s class, so it isn't a second, disconnected theme.
+`TraceGraph.tsx` (`@xyflow/react`) — the call-tree companion to the waterfall, toggled via the
+underlined-tab-style pill control on Trace Detail — is unchanged in layout logic. Its `SpanNode`
+components now match the app's hairline card language (`rounded-lg border bg-card shadow-sm`,
+see Elevation & Depth) instead of the old `shadow-lg` material. `colorMode` still follows the
+app's own dark/light toggle via a `MutationObserver` on `document.documentElement`'s class.
 
-## Known pattern: single-day chart data
+## Browser surfaces
 
-The daily bar charts (trace volume, latency-over-time, operations-per-hour) cap each bar at
-`max-w-12` inside a `flex-1` track. Without the cap, a single day of data (the common state
-for this project's own dev/demo traffic) renders as one solid block filling the whole card,
-which reads as broken rather than as a chart. Any new daily/hourly bar chart in this app
-should use the same pattern.
+Still themed rather than left as OS chrome, now reading the new tokens: `::selection`
+(`--color-primary` — ink, not a brand hue, so selected text now shows as a dark/light highlight
+rather than a colored one), scrollbar (WebKit + `scrollbar-color`), `caret-color`, checkbox/radio
+`accent-color`, `font-variant-numeric: tabular-nums` on tables. See the `@layer base` block in
+`index.css`.
 
 ## Native form elements
 
-Checkboxes/radios are native `<input>` elements themed only via `accent-color` (not rebuilt
-as custom components). `<select>` elements are native and unstyled beyond the shared
-input chrome (`border-input`, `bg-background`) — the dropdown popup and arrow are OS-drawn.
-This was a deliberate scope boundary for this pass, not an oversight: replacing them with a
-custom Radix `Select` is a larger, separate change.
+Checkboxes/radios stay native `<input>` elements themed only via `accent-color` (now ink, not a
+brand hue) — not rebuilt as custom components. `<select>` elements stay native and unstyled
+beyond the shared input chrome; the dropdown popup and arrow are OS-drawn. Still a deliberate
+scope boundary, not an oversight.
 
 ## Surfaces covered by this pass
 
-`Layout.tsx`, `TraceExplorer.tsx`, `TraceDetail.tsx`, `Analytics.tsx`, `Regression.tsx`, the
-new `Connect.tsx` (`/connect` route) — a live agent-onboarding page mirroring the README's
-own Usage section, with a real polling "waiting for your first trace" status against
-`GET /traces` — and the new `Overview.tsx` (`/`), the landing page: one card per distinct
-agent from a real per-agent SQL rollup (`GET /agents`, `db.get_agent_summary()`), plus a
-global stat row. `TraceExplorer` moved from `/` to `/traces` to make room for it.
+Every existing page restyled onto the new world: `Layout.tsx`, `Overview.tsx` (kept its
+per-agent-card content/IA, restyled only), `TraceExplorer.tsx`, `TraceDetail.tsx`,
+`TraceGraph.tsx`, `Sessions.tsx`, `Analytics.tsx`, `Regression.tsx`, `Alerts.tsx`, `Connect.tsx`.
+Three new pages: `Home.tsx` (`/home`, additive alongside Overview), `Scores.tsx` (`/scores`, new
+per-trace numeric judge scoring in `eval/iris_eval`), `Dashboards.tsx` (`/dashboards`, a real
+server-persisted widget system backed by a new `dashboard_widgets` table and a fixed real-metric
+catalog in `collector/iris_collector/db.py`).
 
-An Overview card links to `/traces?agent=<name>`; `TraceExplorer` seeds its `agent` filter
-from that query param on mount. Building this exposed a real backend bug: `list_traces()`'s
-`agent` filter only matched `gen_ai.agent.name`, while every display surface (row labels,
-the agent `<select>`, `get_agent_summary()`) falls back to `service_name` when that attribute
-is absent — so an agent visible everywhere else was unfilterable. Fixed by matching the same
-`COALESCE(gen_ai.agent.name, service_name)` identity in the filter.
+## Do's and Don'ts
+
+### Do:
+- **Do** keep saturated color inside `--chart-1..5`, status dots, and `/10`–`/20` tinted badge
+  fills. Primary UI chrome (nav, buttons, borders) stays neutral.
+- **Do** use the hairline `border-border shadow-sm` card by default; reach for a stronger shadow
+  only if a component is genuinely floating above content (a dropdown, a modal), not for a
+  resting card.
+- **Do** use underlined text-tabs for any new in-page view switcher, matching `TextTabs`'s
+  `border-b-2 border-foreground` active state — not a filled pill.
+- **Do** cap daily/hourly bar-chart bar width (`max-w-12` pattern) so single-day data doesn't
+  read as a broken solid block.
+
+### Don't:
+- **Don't** give `--primary` a saturated hue. Every prior pass (indigo, amber, Mahogany Red)
+  that did this was explicitly walked back; the current ink-primary choice is the resolution,
+  not one more iteration to defend.
+- **Don't** add a labeled/expandable sidebar. The icon-only rail with no text labels and no
+  collapse toggle is the current, deliberate nav pattern.
+</content>

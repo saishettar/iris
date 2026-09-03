@@ -69,7 +69,15 @@ async def run_suite(suite: EvalSuite, judge_client=None) -> list[EvalCaseResult]
                         "test case uses an llm-rubric assertion but no judge_client was provided"
                     )
                 judged = llm_rubric(output_text, assertion.rubric, judge_client)
-                assertion_results.append(AssertionResult("llm-rubric", judged.passed, judged.reason))
+                assertion_results.append(
+                    AssertionResult(
+                        "llm-rubric",
+                        judged.passed,
+                        judged.reason,
+                        name=assertion.name or "llm-rubric",
+                        score=judged.score,
+                    )
+                )
             elif assertion.type == "answer-relevance":
                 if judge_client is None:
                     raise RuntimeError(
@@ -82,7 +90,13 @@ async def run_suite(suite: EvalSuite, judge_client=None) -> list[EvalCaseResult]
                     )
                 judged = answer_relevance(question, output_text, judge_client)
                 assertion_results.append(
-                    AssertionResult("answer-relevance", judged.passed, judged.reason)
+                    AssertionResult(
+                        "answer-relevance",
+                        judged.passed,
+                        judged.reason,
+                        name=assertion.name or "answer-relevance",
+                        score=judged.score,
+                    )
                 )
             else:
                 raise ValueError(f"unknown assertion type: {assertion.type}")

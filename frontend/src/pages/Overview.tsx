@@ -15,7 +15,7 @@ import { getAgentSummary, getMetricsSummary, type AgentSummary } from "@/lib/api
 // already uses -- real visual variety instead of every card reading identical,
 // literal class strings (not template-built) so Tailwind's scanner sees them.
 const AGENT_TONES = [
-  "bg-primary/15 text-primary",
+  "bg-[var(--chart-1)]/15 text-[var(--chart-1)]",
   "bg-[var(--chart-2)]/15 text-[var(--chart-2)]",
   "bg-[var(--chart-3)]/15 text-[var(--chart-3)]",
   "bg-[var(--chart-4)]/15 text-[var(--chart-4)]",
@@ -50,10 +50,10 @@ function Stat({
   trend?: number[]
 }) {
   return (
-    <Card className="bg-card/80">
+    <Card>
       <CardContent className="p-5">
-        <div className="mb-5 flex items-center justify-between">
-          <span className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="mb-5 flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             {label}
           </span>
           <Icon className={`size-4 ${tone === "destructive" ? "text-destructive" : "text-primary"}`} />
@@ -160,7 +160,7 @@ export function Overview() {
                 agent.trace_count > 0 ? (agent.error_count / agent.trace_count) * 100 : 0
               return (
                 <Link key={agent.agent_name} to={`/traces?agent=${encodeURIComponent(agent.agent_name)}`}>
-                  <Card className="h-full bg-card/80 transition-colors hover:bg-accent/40">
+                  <Card className="h-full transition-colors hover:bg-accent/40">
                     <CardContent className="space-y-4 p-5">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 items-center gap-2">

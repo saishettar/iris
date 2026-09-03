@@ -148,7 +148,7 @@ export function TraceExplorer() {
         )}
       </div>
 
-      <Card className="bg-card/80">
+      <Card>
         <CardContent className="space-y-4 pt-6">
           <div className="flex flex-wrap items-end gap-3">
             <div className="relative max-w-sm flex-1">
@@ -237,7 +237,7 @@ export function TraceExplorer() {
             </p>
           )}
 
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="overflow-hidden rounded-lg border border-border">
             {filtered.map((trace, i) => (
               <Link
                 key={trace.trace_id}

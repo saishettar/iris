@@ -36,6 +36,8 @@ export interface AssertionResult {
   assertion_type: string
   passed: boolean
   detail: string
+  name?: string
+  score?: number | null
 }
 
 export interface EvalResult {
@@ -71,11 +73,27 @@ export interface LatencyByDay {
   p50: number
 }
 
+export interface LatencyByModelDay {
+  day: string
+  model: string
+  p50: number
+  p75: number
+  p90: number
+}
+
+export interface SpansByTypeDay {
+  day: string
+  name: string
+  count: number
+}
+
 export interface MetricsSummary {
   trace_volume: TraceVolumeDay[]
   model_usage: ModelUsage[]
   latency_percentiles: LatencyPercentiles
   latency_by_day: LatencyByDay[]
+  latency_by_model_day: LatencyByModelDay[]
+  spans_by_type_by_day: SpansByTypeDay[]
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
@@ -325,4 +343,48 @@ export function deleteAlertRule(ruleId: string): Promise<{ deleted: string }> {
 
 export function listAlertEvents(limit = 50): Promise<AlertEvent[]> {
   return apiFetch<AlertEvent[]>(`/alert-events?limit=${limit}`)
+}
+
+export interface WidgetMetricInfo {
+  label: string
+  kind: "stat" | "chart"
+}
+
+export type WidgetMetricCatalog = Record<string, WidgetMetricInfo>
+
+export interface WidgetChartRow {
+  label: string
+  value: number
+}
+
+export type WidgetData = { kind: "stat"; value: number | string } | { kind: "chart"; rows: WidgetChartRow[] }
+
+export interface DashboardWidget {
+  id: string
+  title: string
+  metric: string
+  kind: "stat" | "chart"
+  position: number
+  created_at: string
+  data: WidgetData
+}
+
+export function listWidgetMetrics(): Promise<WidgetMetricCatalog> {
+  return apiFetch<WidgetMetricCatalog>("/dashboard/metrics")
+}
+
+export function listDashboardWidgets(days?: number): Promise<DashboardWidget[]> {
+  return apiFetch<DashboardWidget[]>(`/dashboard/widgets${days ? `?days=${days}` : ""}`)
+}
+
+export function createDashboardWidget(title: string, metric: string): Promise<DashboardWidget> {
+  return apiJson<DashboardWidget>("/dashboard/widgets", "POST", { title, metric })
+}
+
+export function deleteDashboardWidget(widgetId: string): Promise<{ ok: boolean }> {
+  return apiJson<{ ok: boolean }>(`/dashboard/widgets/${encodeURIComponent(widgetId)}`, "DELETE")
+}
+
+export function reorderDashboardWidgets(widgetIds: string[]): Promise<{ ok: boolean }> {
+  return apiJson<{ ok: boolean }>("/dashboard/widgets/reorder", "POST", { widget_ids: widgetIds })
 }

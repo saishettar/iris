@@ -584,11 +584,57 @@ def get_metrics_summary(days: int = 14) -> dict:
             )
             latency_by_day = cur.fetchall()
 
+            # Per-model latency percentiles over time -- powers Home's "Model
+            # latencies" chart (one line per model, same real chat-span
+            # durations latency_by_day aggregates, just split by model too).
+            cur.execute(
+                """
+                SELECT
+                    date_trunc('day', start_time) AS day,
+                    attributes->>'gen_ai.request.model' AS model,
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p50,
+                    percentile_cont(0.75) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p75,
+                    percentile_cont(0.9) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p90
+                FROM spans
+                WHERE name = 'chat' AND end_time IS NOT NULL
+                    AND attributes ? 'gen_ai.request.model'
+                    AND start_time >= now() - (%s || ' days')::interval
+                GROUP BY day, model
+                ORDER BY day
+                """,
+                (days,),
+            )
+            latency_by_model_day = cur.fetchall()
+
+            # Real OTel GenAI span kinds (chat/execute_tool/invoke_agent) by
+            # day -- the honest equivalent of Langfuse's observation-type
+            # breakdown; Iris has no Default/Debug/Error observation levels,
+            # so this groups by the span kinds Iris actually tracks instead.
+            cur.execute(
+                """
+                SELECT date_trunc('day', start_time) AS day, name, count(*) AS count
+                FROM spans
+                WHERE start_time >= now() - (%s || ' days')::interval
+                GROUP BY day, name
+                ORDER BY day
+                """,
+                (days,),
+            )
+            spans_by_type_by_day = cur.fetchall()
+
     return {
         "trace_volume": trace_volume,
         "model_usage": model_usage,
         "latency_percentiles": latency_percentiles,
         "latency_by_day": latency_by_day,
+        "latency_by_model_day": latency_by_model_day,
+        "spans_by_type_by_day": spans_by_type_by_day,
     }
 
 
@@ -820,3 +866,162 @@ def get_otel_metrics_summary(hours: int = 24) -> dict:
         "token_usage": token_usage,
         "operations_by_hour": operations_by_hour,
     }
+
+
+# Real, fixed metric catalog for the custom dashboard (Langfuse's "My Custom
+# Dashboard") -- every entry reuses an aggregate query this module already
+# runs elsewhere (metrics summary, agent summary, eval runs). A widget picks
+# one of these by id; there is no free-form user-typed query, so a widget
+# can never show a fabricated or unbounded value.
+WIDGET_METRICS: dict[str, dict[str, str]] = {
+    "traces_total": {"label": "Total traces", "kind": "stat"},
+    "agents_total": {"label": "Total agents", "kind": "stat"},
+    "error_rate": {"label": "Error rate", "kind": "stat"},
+    "p50_latency": {"label": "P50 latency", "kind": "stat"},
+    "trace_volume_by_day": {"label": "Trace volume (14d)", "kind": "chart"},
+    "latency_by_day": {"label": "P50 latency over time (14d)", "kind": "chart"},
+    "model_usage": {"label": "Model usage", "kind": "chart"},
+    "agent_traces": {"label": "Traces by agent", "kind": "chart"},
+    "eval_pass_rate": {"label": "Eval pass rate by suite", "kind": "chart"},
+}
+
+
+def list_dashboard_widgets() -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM dashboard_widgets ORDER BY position, created_at")
+            return cur.fetchall()
+
+
+def create_dashboard_widget(title: str, metric: str) -> dict:
+    if metric not in WIDGET_METRICS:
+        raise ValueError(f"unknown widget metric: {metric}")
+    kind = WIDGET_METRICS[metric]["kind"]
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM dashboard_widgets")
+            next_position = cur.fetchone()["next_position"]
+            cur.execute(
+                """
+                INSERT INTO dashboard_widgets (title, metric, kind, position)
+                VALUES (%s, %s, %s, %s)
+                RETURNING *
+                """,
+                (title, metric, kind, next_position),
+            )
+            return cur.fetchone()
+
+
+def delete_dashboard_widget(widget_id: str) -> None:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM dashboard_widgets WHERE id = %s", (widget_id,))
+
+
+def reorder_dashboard_widgets(ordered_ids: list[str]) -> None:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            for i, widget_id in enumerate(ordered_ids):
+                cur.execute("UPDATE dashboard_widgets SET position = %s WHERE id = %s", (i, widget_id))
+
+
+def get_widget_data(metric: str, days: int | None = None) -> dict:
+    """`days` is the dashboard's date-range filter (Traces/Home use the same
+    control). Applied everywhere the underlying data has a real time
+    dimension (traces, spans); metrics with no natural date axis --
+    agents_total (distinct agents ever seen), model_usage, agent_traces, and
+    eval_pass_rate (point-in-time/latest-run snapshots) -- are unaffected by
+    it, the same way not every Langfuse widget type honors every filter."""
+    if metric not in WIDGET_METRICS:
+        raise ValueError(f"unknown widget metric: {metric}")
+
+    if metric == "traces_total":
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                if days is None:
+                    cur.execute("SELECT count(*) FROM traces")
+                else:
+                    cur.execute(
+                        "SELECT count(*) FROM traces WHERE first_seen_at >= now() - (%s || ' days')::interval",
+                        (days,),
+                    )
+                return {"kind": "stat", "value": cur.fetchone()[0]}
+
+    if metric == "agents_total":
+        return {"kind": "stat", "value": len(get_agent_summary())}
+
+    if metric == "error_rate":
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        count(*) AS total,
+                        count(*) FILTER (
+                            WHERE EXISTS (
+                                SELECT 1 FROM spans s
+                                WHERE s.trace_id = t.trace_id AND s.status_code = 'STATUS_CODE_ERROR'
+                            )
+                        ) AS errors
+                    FROM traces t
+                    WHERE %s::int IS NULL OR t.first_seen_at >= now() - (%s || ' days')::interval
+                    """,
+                    (days, days),
+                )
+                total, errors = cur.fetchone()
+                return {"kind": "stat", "value": round((errors / total) * 100, 1) if total else 0.0}
+
+    if metric == "p50_latency":
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    )
+                    FROM spans
+                    WHERE name = 'chat' AND end_time IS NOT NULL
+                        AND (%s::int IS NULL OR start_time >= now() - (%s || ' days')::interval)
+                    """,
+                    (days, days),
+                )
+                return {"kind": "stat", "value": cur.fetchone()[0]}
+
+    if metric == "trace_volume_by_day":
+        summary = get_metrics_summary(days=days if days is not None else 36500)
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["day"].strftime("%b %d"), "value": r["count"]} for r in summary["trace_volume"]],
+        }
+
+    if metric == "latency_by_day":
+        summary = get_metrics_summary(days=days if days is not None else 36500)
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["day"].strftime("%b %d"), "value": r["p50"]} for r in summary["latency_by_day"]],
+        }
+
+    if metric == "model_usage":
+        summary = get_metrics_summary()
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["model"], "value": r["count"]} for r in summary["model_usage"]],
+        }
+
+    if metric == "agent_traces":
+        agents = get_agent_summary()
+        return {"kind": "chart", "rows": [{"label": a["agent_name"], "value": a["trace_count"]} for a in agents]}
+
+    if metric == "eval_pass_rate":
+        runs = list_eval_runs(limit=200)
+        seen_suites: set[str] = set()
+        rows = []
+        for r in runs:
+            if r["suite_target"] in seen_suites:
+                continue
+            seen_suites.add(r["suite_target"])
+            percent = round((r["passed_count"] / r["test_count"]) * 100, 1) if r["test_count"] else 0.0
+            rows.append({"label": r["suite_target"], "value": percent})
+        return {"kind": "chart", "rows": rows}
+
+    raise ValueError(f"unhandled widget metric: {metric}")

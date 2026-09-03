@@ -8,7 +8,7 @@
     <script>
       (function () {
         var stored = localStorage.getItem("iris-theme");
-        var dark = stored ? stored === "dark" : true;
+        var dark = stored ? stored === "dark" : false;
         document.documentElement.classList.toggle("dark", dark);
       })();
     </script>

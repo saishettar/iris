@@ -117,7 +117,7 @@ export function Alerts() {
         </p>
       </div>
 
-      <Card className="bg-card/80">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">New rule</CardTitle>
         </CardHeader>
@@ -195,7 +195,7 @@ export function Alerts() {
       )}
 
       {rules.length > 0 && (
-        <Card className="bg-card/80">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Rules</CardTitle>
           </CardHeader>
@@ -203,7 +203,7 @@ export function Alerts() {
             {rules.map((rule) => (
               <div
                 key={rule.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/60 px-4 py-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <button
@@ -243,7 +243,7 @@ export function Alerts() {
         </Card>
       )}
 
-      <Card className="bg-card/80">
+      <Card>
         <CardHeader>
           <CardTitle className="text-base">Recent firings</CardTitle>
         </CardHeader>

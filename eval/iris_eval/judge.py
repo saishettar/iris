@@ -9,15 +9,18 @@ JUDGE_MODEL = "claude-sonnet-5"
 
 RUBRIC_SYSTEM_PROMPT = (
     "You are grading whether an AI system's output satisfies a rubric. "
-    "Respond with exactly one line: PASS or FAIL, then a one-sentence reason."
+    "Respond with exactly two lines: first PASS or FAIL, then SCORE: <a "
+    "number 0-10 rating how well it satisfies the rubric, 10 being perfect>. "
+    "Then a one-sentence reason on a third line."
 )
 
 ANSWER_RELEVANCE_SYSTEM_PROMPT = (
     "You are grading whether an AI system's answer is relevant to the question "
     "it was asked -- not whether it's factually correct, just whether it "
     "actually addresses what was asked rather than going off topic or dodging "
-    "the question. Respond with exactly one line: PASS or FAIL, then a "
-    "one-sentence reason."
+    "the question. Respond with exactly two lines: first PASS or FAIL, then "
+    "SCORE: <a number 0-10 rating how relevant it is, 10 being fully relevant>. "
+    "Then a one-sentence reason on a third line."
 )
 
 
@@ -25,6 +28,20 @@ ANSWER_RELEVANCE_SYSTEM_PROMPT = (
 class JudgeResult:
     passed: bool
     reason: str
+    score: float | None = None
+
+
+def _parse_score(second_line: str) -> float | None:
+    """Normalizes the judge's 0-10 SCORE line to 0-1. Returns None (not a
+    fabricated 0 or 0.5) if the judge didn't answer in the expected shape --
+    an unparseable judge response is a missing score, not a guessed one."""
+    if not second_line.upper().startswith("SCORE"):
+        return None
+    try:
+        raw = float(second_line.split(":", 1)[1].strip())
+    except (IndexError, ValueError):
+        return None
+    return max(0.0, min(10.0, raw)) / 10.0
 
 
 def _judge(system_prompt: str, user_content: str, client) -> JudgeResult:
@@ -35,8 +52,10 @@ def _judge(system_prompt: str, user_content: str, client) -> JudgeResult:
         messages=[{"role": "user", "content": user_content}],
     )
     text = next(block.text for block in message.content if block.type == "text").strip()
-    first_line = text.splitlines()[0].strip().upper()
-    return JudgeResult(passed=first_line.startswith("PASS"), reason=text)
+    lines = text.splitlines()
+    first_line = lines[0].strip().upper() if lines else ""
+    score = _parse_score(lines[1].strip()) if len(lines) > 1 else None
+    return JudgeResult(passed=first_line.startswith("PASS"), reason=text, score=score)
 
 
 def llm_rubric(output: str, rubric: str, client) -> JudgeResult:

@@ -34,7 +34,7 @@ interface SpanNodeData extends Record<string, unknown> {
 function SpanNode({ data }: NodeProps<Node<SpanNodeData>>) {
   return (
     <div
-      className={`w-[210px] rounded-xl border bg-card px-3 py-2.5 shadow-lg shadow-black/20 ${
+      className={`w-[210px] rounded-lg border bg-card px-3 py-2.5 shadow-sm ${
         data.isError ? "border-destructive/50" : "border-border"
       } ${data.isRoot ? "ring-1 ring-primary/40" : ""}`}
     >
@@ -132,7 +132,7 @@ export function TraceGraph({ spans }: { spans: Span[] }) {
   const { nodes, edges } = useMemo(() => layoutTree(spans), [spans])
 
   return (
-    <div className="h-[500px] overflow-hidden rounded-xl border border-border">
+    <div className="h-[500px] overflow-hidden rounded-lg border border-border">
       <ReactFlow
         nodes={nodes}
         edges={edges}

@@ -53,88 +53,86 @@
 }
 
 :root {
-    /* Black / Mahogany Red / Strawberry Red / Silver / Dust Grey / White
-       Smoke / White -- user-specified named palette, kept as literal hex.
-       Not every supplied swatch is used (Carbon Black and Dark Garnet are
-       dark-mode-only); chart-2/3/4 stay outside this family on purpose,
-       see DESIGN.md -- a data-viz series needs colors a viewer can tell
-       apart at a glance, which three shades of one red family can't do. */
-    --background: #f5f3f4;
-    --foreground: #0b090a;
-    --card: #ffffff;
-    --card-foreground: #0b090a;
-    --popover: #ffffff;
-    --popover-foreground: #0b090a;
-    --primary: #a4161a;
-    --primary-foreground: #ffffff;
-    --secondary: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
-    --secondary-foreground: #0b090a;
-    --muted: color-mix(in oklch, #f5f3f4, #d3d3d3 30%);
-    --muted-foreground: color-mix(in oklch, #0b090a, #b1a7a6 55%);
-    --accent: oklch(0.91 0 0);
-    --accent-foreground: oklch(0.2 0 0);
-    --destructive: #e5383b;
+    /* Langfuse-pinned world: color lives in the data, not the chrome.
+       Primary is ink, not a brand hue -- the previous Mahogany Red /
+       Strawberry Red named palette (and the amber pass before it) is
+       retired; see DESIGN.md for the full history. Chart-1..5 carry the
+       only saturated color on the page (periwinkle, gold, teal, green,
+       neutral), matched off the user's pinned Langfuse screenshots. */
+    --background: oklch(0.985 0.004 75);
+    --foreground: oklch(0.17 0.006 60);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.17 0.006 60);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.17 0.006 60);
+    --primary: oklch(0.17 0.006 60);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.95 0.004 75);
+    --secondary-foreground: oklch(0.17 0.006 60);
+    --muted: oklch(0.95 0.004 75);
+    --muted-foreground: oklch(0.5 0.006 60);
+    --accent: oklch(0.93 0.004 75);
+    --accent-foreground: oklch(0.17 0.006 60);
+    --destructive: oklch(0.55 0.2 25);
     --success: oklch(0.5 0.14 155);
     --success-foreground: oklch(0.5 0.14 155);
-    --border: #d3d3d3;
-    --input: #d3d3d3;
-    --ring: #a4161a;
-    --chart-1: #a4161a;
-    --chart-2: oklch(0.6 0.12 190);
-    --chart-3: oklch(0.55 0.17 250);
-    --chart-4: oklch(0.5 0.14 155);
-    --chart-5: #b1a7a6;
-    --radius: 0.85rem;
-    --sidebar: color-mix(in oklch, #ffffff, #d3d3d3 15%);
-    --sidebar-foreground: #0b090a;
-    --sidebar-primary: #a4161a;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: oklch(0.91 0 0);
-    --sidebar-accent-foreground: oklch(0.2 0 0);
-    --sidebar-border: #d3d3d3;
-    --sidebar-ring: #a4161a;
+    --border: oklch(0.9 0.004 75);
+    --input: oklch(0.88 0.004 75);
+    --ring: oklch(0.62 0.19 265);
+    --chart-1: oklch(0.62 0.19 265);
+    --chart-2: oklch(0.78 0.13 80);
+    --chart-3: oklch(0.65 0.11 190);
+    --chart-4: oklch(0.55 0.1 155);
+    --chart-5: oklch(0.6 0.01 60);
+    --radius: 0.5rem;
+    --sidebar: oklch(1 0 0);
+    --sidebar-foreground: oklch(0.17 0.006 60);
+    --sidebar-primary: oklch(0.17 0.006 60);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.93 0.004 75);
+    --sidebar-accent-foreground: oklch(0.17 0.006 60);
+    --sidebar-border: oklch(0.9 0.004 75);
+    --sidebar-ring: oklch(0.62 0.19 265);
 }
 
 .dark {
-    /* Backgrounds are true neutral gray (zero chroma) to match light mode's
-       treatment -- Black/Carbon Black read with a faint warm/cool tint at
-       close inspection, which is inconsistent with :root's genuinely
-       neutral White Smoke/White. Mahogany Red (primary), Strawberry Red
-       (destructive), and Silver (chart-5) are the named-palette colors
-       still doing real work here; the rest is plain neutral gray. */
-    --background: oklch(0.09 0 0);
+    /* Same system, inverted -- ink primary flips to near-white, chart
+       hues brighten to hold contrast on a dark ground. The pinned
+       reference is light-only; this is the honest dark translation, not
+       a second identity. */
+    --background: oklch(0.14 0 0);
     --foreground: oklch(0.96 0 0);
-    --card: oklch(0.15 0 0);
+    --card: oklch(0.19 0 0);
     --card-foreground: oklch(0.96 0 0);
-    --popover: oklch(0.15 0 0);
+    --popover: oklch(0.19 0 0);
     --popover-foreground: oklch(0.96 0 0);
-    --primary: #ba181b;
-    --primary-foreground: #ffffff;
-    --secondary: oklch(0.22 0 0);
+    --primary: oklch(0.96 0 0);
+    --primary-foreground: oklch(0.15 0 0);
+    --secondary: oklch(0.24 0 0);
     --secondary-foreground: oklch(0.96 0 0);
-    --muted: oklch(0.22 0 0);
+    --muted: oklch(0.24 0 0);
     --muted-foreground: oklch(0.65 0 0);
-    --accent: oklch(0.24 0 0);
-    --accent-foreground: oklch(0.94 0 0);
-    --destructive: #e5383b;
+    --accent: oklch(0.26 0 0);
+    --accent-foreground: oklch(0.96 0 0);
+    --destructive: oklch(0.62 0.2 25);
     --success: oklch(0.72 0.15 155);
     --success-foreground: oklch(0.72 0.15 155);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: #ba181b;
-    --chart-1: #ba181b;
-    --chart-2: oklch(0.7 0.11 190);
-    --chart-3: oklch(0.68 0.15 250);
-    --chart-4: oklch(0.72 0.15 155);
-    --chart-5: #b1a7a6;
+    --ring: oklch(0.72 0.16 265);
+    --chart-1: oklch(0.72 0.16 265);
+    --chart-2: oklch(0.82 0.12 80);
+    --chart-3: oklch(0.72 0.1 190);
+    --chart-4: oklch(0.68 0.11 155);
+    --chart-5: oklch(0.65 0.006 60);
     --sidebar: oklch(0.12 0 0);
     --sidebar-foreground: oklch(0.96 0 0);
-    --sidebar-primary: #ba181b;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: oklch(0.24 0 0);
-    --sidebar-accent-foreground: oklch(0.94 0 0);
+    --sidebar-primary: oklch(0.96 0 0);
+    --sidebar-primary-foreground: oklch(0.15 0 0);
+    --sidebar-accent: oklch(0.26 0 0);
+    --sidebar-accent-foreground: oklch(0.96 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: #ba181b;
+    --sidebar-ring: oklch(0.72 0.16 265);
 }
 
 @layer base {

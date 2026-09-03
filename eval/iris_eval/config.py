@@ -14,6 +14,11 @@ class Assertion:
     threshold_ms: float | None = None
     threshold_usd: float | None = None
     rubric: str | None = None
+    # Distinguishes two llm-rubric/answer-relevance assertions on the same
+    # test case (e.g. "helpfulness" vs "correctness") so their numeric
+    # scores can be compared -- see Scores.tsx. Defaults to `type`, so a
+    # suite with only one judge assertion per test case needs no change.
+    name: str | None = None
 
 
 @dataclass

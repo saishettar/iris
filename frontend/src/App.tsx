@@ -4,8 +4,11 @@ import { Layout } from "@/components/Layout"
 import { Alerts } from "@/pages/Alerts"
 import { Analytics } from "@/pages/Analytics"
 import { Connect } from "@/pages/Connect"
+import { Dashboards } from "@/pages/Dashboards"
+import { Home } from "@/pages/Home"
 import { Overview } from "@/pages/Overview"
 import { Regression } from "@/pages/Regression"
+import { Scores } from "@/pages/Scores"
 import { Sessions } from "@/pages/Sessions"
 import { TraceDetail } from "@/pages/TraceDetail"
 import { TraceExplorer } from "@/pages/TraceExplorer"
@@ -15,11 +18,14 @@ function App() {
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<Overview />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/dashboards" element={<Dashboards />} />
         <Route path="/traces" element={<TraceExplorer />} />
         <Route path="/traces/:traceId" element={<TraceDetail />} />
         <Route path="/sessions" element={<Sessions />} />
         <Route path="/analytics" element={<Analytics />} />
         <Route path="/regression" element={<Regression />} />
+        <Route path="/scores" element={<Scores />} />
         <Route path="/alerts" element={<Alerts />} />
         <Route path="/connect" element={<Connect />} />
       </Route>
