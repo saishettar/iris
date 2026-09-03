@@ -266,6 +266,50 @@ def get_metrics_summary(days: int = 14):
     return db.get_metrics_summary(days=days)
 
 
+@app.get("/dashboard/metrics")
+def list_dashboard_metrics():
+    return db.WIDGET_METRICS
+
+
+class DashboardWidgetIn(BaseModel):
+    title: str
+    metric: str
+
+
+@app.get("/dashboard/widgets")
+def list_dashboard_widgets():
+    """Each widget's live value is computed and attached inline -- a small,
+    fixed number of widgets on one self-hosted dashboard, so this is one
+    request rather than a data fetch per widget."""
+    widgets = db.list_dashboard_widgets()
+    for widget in widgets:
+        widget["data"] = db.get_widget_data(widget["metric"])
+    return widgets
+
+
+@app.post("/dashboard/widgets")
+def create_dashboard_widget(body: DashboardWidgetIn):
+    if body.metric not in db.WIDGET_METRICS:
+        raise HTTPException(status_code=400, detail=f"unknown widget metric: {body.metric}")
+    return db.create_dashboard_widget(body.title, body.metric)
+
+
+@app.delete("/dashboard/widgets/{widget_id}")
+def delete_dashboard_widget(widget_id: str):
+    db.delete_dashboard_widget(widget_id)
+    return {"ok": True}
+
+
+class DashboardReorderIn(BaseModel):
+    widget_ids: list[str]
+
+
+@app.post("/dashboard/widgets/reorder")
+def reorder_dashboard_widgets(body: DashboardReorderIn):
+    db.reorder_dashboard_widgets(body.widget_ids)
+    return {"ok": True}
+
+
 class AlertRuleIn(BaseModel):
     name: str
     metric: str

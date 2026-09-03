@@ -866,3 +866,123 @@ def get_otel_metrics_summary(hours: int = 24) -> dict:
         "token_usage": token_usage,
         "operations_by_hour": operations_by_hour,
     }
+
+
+# Real, fixed metric catalog for the custom dashboard (Langfuse's "My Custom
+# Dashboard") -- every entry reuses an aggregate query this module already
+# runs elsewhere (metrics summary, agent summary, eval runs). A widget picks
+# one of these by id; there is no free-form user-typed query, so a widget
+# can never show a fabricated or unbounded value.
+WIDGET_METRICS: dict[str, dict[str, str]] = {
+    "traces_total": {"label": "Total traces", "kind": "stat"},
+    "agents_total": {"label": "Total agents", "kind": "stat"},
+    "error_rate": {"label": "Error rate", "kind": "stat"},
+    "p50_latency": {"label": "P50 latency", "kind": "stat"},
+    "trace_volume_by_day": {"label": "Trace volume (14d)", "kind": "chart"},
+    "latency_by_day": {"label": "P50 latency over time (14d)", "kind": "chart"},
+    "model_usage": {"label": "Model usage", "kind": "chart"},
+    "agent_traces": {"label": "Traces by agent", "kind": "chart"},
+    "eval_pass_rate": {"label": "Eval pass rate by suite", "kind": "chart"},
+}
+
+
+def list_dashboard_widgets() -> list[dict]:
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT * FROM dashboard_widgets ORDER BY position, created_at")
+            return cur.fetchall()
+
+
+def create_dashboard_widget(title: str, metric: str) -> dict:
+    if metric not in WIDGET_METRICS:
+        raise ValueError(f"unknown widget metric: {metric}")
+    kind = WIDGET_METRICS[metric]["kind"]
+    with _connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM dashboard_widgets")
+            next_position = cur.fetchone()["next_position"]
+            cur.execute(
+                """
+                INSERT INTO dashboard_widgets (title, metric, kind, position)
+                VALUES (%s, %s, %s, %s)
+                RETURNING *
+                """,
+                (title, metric, kind, next_position),
+            )
+            return cur.fetchone()
+
+
+def delete_dashboard_widget(widget_id: str) -> None:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM dashboard_widgets WHERE id = %s", (widget_id,))
+
+
+def reorder_dashboard_widgets(ordered_ids: list[str]) -> None:
+    with _connection() as conn:
+        with conn.cursor() as cur:
+            for i, widget_id in enumerate(ordered_ids):
+                cur.execute("UPDATE dashboard_widgets SET position = %s WHERE id = %s", (i, widget_id))
+
+
+def get_widget_data(metric: str) -> dict:
+    if metric not in WIDGET_METRICS:
+        raise ValueError(f"unknown widget metric: {metric}")
+
+    if metric == "traces_total":
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM traces")
+                return {"kind": "stat", "value": cur.fetchone()[0]}
+
+    if metric == "agents_total":
+        return {"kind": "stat", "value": len(get_agent_summary())}
+
+    if metric == "error_rate":
+        agents = get_agent_summary()
+        total = sum(a["trace_count"] for a in agents)
+        errors = sum(a["error_count"] for a in agents)
+        return {"kind": "stat", "value": round((errors / total) * 100, 1) if total else 0.0}
+
+    if metric == "p50_latency":
+        summary = get_metrics_summary()
+        return {"kind": "stat", "value": summary["latency_percentiles"]["p50"]}
+
+    if metric == "trace_volume_by_day":
+        summary = get_metrics_summary()
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["day"].strftime("%b %d"), "value": r["count"]} for r in summary["trace_volume"]],
+        }
+
+    if metric == "latency_by_day":
+        summary = get_metrics_summary()
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["day"].strftime("%b %d"), "value": r["p50"]} for r in summary["latency_by_day"]],
+        }
+
+    if metric == "model_usage":
+        summary = get_metrics_summary()
+        return {
+            "kind": "chart",
+            "rows": [{"label": r["model"], "value": r["count"]} for r in summary["model_usage"]],
+        }
+
+    if metric == "agent_traces":
+        agents = get_agent_summary()
+        return {"kind": "chart", "rows": [{"label": a["agent_name"], "value": a["trace_count"]} for a in agents]}
+
+    if metric == "eval_pass_rate":
+        runs = list_eval_runs(limit=200)
+        seen_suites: set[str] = set()
+        rows = []
+        for r in runs:
+            if r["suite_target"] in seen_suites:
+                continue
+            seen_suites.add(r["suite_target"])
+            percent = round((r["passed_count"] / r["test_count"]) * 100, 1) if r["test_count"] else 0.0
+            rows.append({"label": r["suite_target"], "value": percent})
+        return {"kind": "chart", "rows": rows}
+
+    raise ValueError(f"unhandled widget metric: {metric}")

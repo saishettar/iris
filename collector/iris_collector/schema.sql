@@ -98,3 +98,18 @@ CREATE TABLE IF NOT EXISTS annotations (
 );
 
 CREATE INDEX IF NOT EXISTS annotations_trace_id_idx ON annotations (trace_id);
+
+-- Custom dashboard (Langfuse's "My Custom Dashboard"): a single self-hosted
+-- instance has no multi-user/multi-dashboard concept, so this is one
+-- ordered widget list rather than a dashboards table. `metric` is one of a
+-- fixed, real catalog (WIDGET_METRICS in db.py) -- every widget reads
+-- already-real aggregate data (metrics_summary, agent_summary, eval runs),
+-- never a user-typed arbitrary query.
+CREATE TABLE IF NOT EXISTS dashboard_widgets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('stat', 'chart')),
+    position INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

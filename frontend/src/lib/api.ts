@@ -344,3 +344,47 @@ export function deleteAlertRule(ruleId: string): Promise<{ deleted: string }> {
 export function listAlertEvents(limit = 50): Promise<AlertEvent[]> {
   return apiFetch<AlertEvent[]>(`/alert-events?limit=${limit}`)
 }
+
+export interface WidgetMetricInfo {
+  label: string
+  kind: "stat" | "chart"
+}
+
+export type WidgetMetricCatalog = Record<string, WidgetMetricInfo>
+
+export interface WidgetChartRow {
+  label: string
+  value: number
+}
+
+export type WidgetData = { kind: "stat"; value: number | string } | { kind: "chart"; rows: WidgetChartRow[] }
+
+export interface DashboardWidget {
+  id: string
+  title: string
+  metric: string
+  kind: "stat" | "chart"
+  position: number
+  created_at: string
+  data: WidgetData
+}
+
+export function listWidgetMetrics(): Promise<WidgetMetricCatalog> {
+  return apiFetch<WidgetMetricCatalog>("/dashboard/metrics")
+}
+
+export function listDashboardWidgets(): Promise<DashboardWidget[]> {
+  return apiFetch<DashboardWidget[]>("/dashboard/widgets")
+}
+
+export function createDashboardWidget(title: string, metric: string): Promise<DashboardWidget> {
+  return apiJson<DashboardWidget>("/dashboard/widgets", "POST", { title, metric })
+}
+
+export function deleteDashboardWidget(widgetId: string): Promise<{ ok: boolean }> {
+  return apiJson<{ ok: boolean }>(`/dashboard/widgets/${encodeURIComponent(widgetId)}`, "DELETE")
+}
+
+export function reorderDashboardWidgets(widgetIds: string[]): Promise<{ ok: boolean }> {
+  return apiJson<{ ok: boolean }>("/dashboard/widgets/reorder", "POST", { widget_ids: widgetIds })
+}
