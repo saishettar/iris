@@ -26,7 +26,8 @@ Not a novel category -- a small, self-hosted, OpenTelemetry-native implementatio
 ## Operating Context
 
 - Self-hosted via `docker compose up -d --build` (Postgres + collector + dashboard, one command).
-- Instrumentation is SDK-based (Python decorators/context managers), not a network proxy -- an agent must be instrumented at the code level (or already emit OTel traces) to appear in the dashboard. There is no zero-code "point any agent at this" mode.
+- Instrumentation is SDK-based, not a network proxy -- an agent must be instrumented at the code level (or already emit OTel traces) to appear in the dashboard. There is no zero-code "point any agent at this" mode.
+- Two real SDKs ship today: `iris_otel` (Python, decorators/context managers) and `@saishettar/iris-otel` (TypeScript, published on the public npm registry) -- the TS package deliberately mirrors the Python one's API and semantics (same `gen_ai.*` OTLP spans/metrics, same opt-in content-capture stance) rather than diverging into a separate design.
 - Two real dogfooded integrations exist today: nyu-rag (a single-call RAG answer generator) and undercut (a multi-round Claude tool-use agent, formerly f1-race-strategy-agent) -- both real, separate GitHub repos, both actually instrumented and traced live.
 - A CI regression gate (GitHub Action) runs the eval suite on PRs touching the prompt and posts results as a comment, in both dogfooded repos.
 
@@ -39,6 +40,7 @@ Not a novel category -- a small, self-hosted, OpenTelemetry-native implementatio
 - Constraint (deliberate, not a gap): eval runs are standalone re-invocations of a target function, not scoring of live traffic already in the collector -- closer to how promptfoo actually works.
 - Constraint: no auth on the collector or dashboard -- acceptable for a self-hosted personal tool, a real gap if ever run somewhere shared.
 - Constraint: connecting a *new* agent requires either code-level instrumentation (adding the SDK, decorating call sites) or the agent already emitting OTel-compliant traces pointed at the collector -- there is no proxy/interception mode.
+- Constraint: the two SDKs mirror each other's core API but are not guaranteed feature-identical release-to-release -- the Python package is the older, more dogfooded one (both real integrations, nyu-rag and undercut, are Python); the TypeScript package is newer and has not yet been used to instrument a real dogfooded agent the way the Python one has.
 
 ## Brand Commitments
 
