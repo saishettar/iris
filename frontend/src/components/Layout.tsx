@@ -5,6 +5,7 @@ import {
   CircleHelp,
   FileSearch,
   GitCompare,
+  House,
   LayoutGrid,
   MessagesSquare,
   Moon,
@@ -26,6 +27,7 @@ import { API_BASE_URL } from "@/lib/api"
 // never a brand hue.
 const NAV_LINKS = [
   { to: "/", label: "Overview", icon: LayoutGrid },
+  { to: "/home", label: "Home", icon: House },
   { to: "/traces", label: "Traces", icon: FileSearch },
   { to: "/sessions", label: "Sessions", icon: MessagesSquare },
   { to: "/analytics", label: "Analytics", icon: BarChart3 },
@@ -80,6 +82,7 @@ function IrisMark({ className }: { className?: string }) {
 function activeLabel(pathname: string): string {
   if (pathname.startsWith("/traces/")) return "Trace detail"
   if (pathname === "/") return "Overview"
+  if (pathname === "/home") return "Home"
   if (pathname === "/traces") return "Traces"
   if (pathname === "/sessions") return "Sessions"
   if (pathname === "/analytics") return "Analytics"

@@ -584,11 +584,57 @@ def get_metrics_summary(days: int = 14) -> dict:
             )
             latency_by_day = cur.fetchall()
 
+            # Per-model latency percentiles over time -- powers Home's "Model
+            # latencies" chart (one line per model, same real chat-span
+            # durations latency_by_day aggregates, just split by model too).
+            cur.execute(
+                """
+                SELECT
+                    date_trunc('day', start_time) AS day,
+                    attributes->>'gen_ai.request.model' AS model,
+                    percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p50,
+                    percentile_cont(0.75) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p75,
+                    percentile_cont(0.9) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    ) AS p90
+                FROM spans
+                WHERE name = 'chat' AND end_time IS NOT NULL
+                    AND attributes ? 'gen_ai.request.model'
+                    AND start_time >= now() - (%s || ' days')::interval
+                GROUP BY day, model
+                ORDER BY day
+                """,
+                (days,),
+            )
+            latency_by_model_day = cur.fetchall()
+
+            # Real OTel GenAI span kinds (chat/execute_tool/invoke_agent) by
+            # day -- the honest equivalent of Langfuse's observation-type
+            # breakdown; Iris has no Default/Debug/Error observation levels,
+            # so this groups by the span kinds Iris actually tracks instead.
+            cur.execute(
+                """
+                SELECT date_trunc('day', start_time) AS day, name, count(*) AS count
+                FROM spans
+                WHERE start_time >= now() - (%s || ' days')::interval
+                GROUP BY day, name
+                ORDER BY day
+                """,
+                (days,),
+            )
+            spans_by_type_by_day = cur.fetchall()
+
     return {
         "trace_volume": trace_volume,
         "model_usage": model_usage,
         "latency_percentiles": latency_percentiles,
         "latency_by_day": latency_by_day,
+        "latency_by_model_day": latency_by_model_day,
+        "spans_by_type_by_day": spans_by_type_by_day,
     }
 
 

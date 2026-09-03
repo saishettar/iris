@@ -71,11 +71,27 @@ export interface LatencyByDay {
   p50: number
 }
 
+export interface LatencyByModelDay {
+  day: string
+  model: string
+  p50: number
+  p75: number
+  p90: number
+}
+
+export interface SpansByTypeDay {
+  day: string
+  name: string
+  count: number
+}
+
 export interface MetricsSummary {
   trace_volume: TraceVolumeDay[]
   model_usage: ModelUsage[]
   latency_percentiles: LatencyPercentiles
   latency_by_day: LatencyByDay[]
+  latency_by_model_day: LatencyByModelDay[]
+  spans_by_type_by_day: SpansByTypeDay[]
 }
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4318"
