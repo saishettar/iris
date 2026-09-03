@@ -1,9 +1,17 @@
 {
-  "name": "iris-otel",
+  "name": "@saishettar/iris-otel",
   "version": "0.0.1",
   "description": "OpenTelemetry-native instrumentation SDK for LLM/agent calls (Iris) - TypeScript",
   "license": "MIT",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saishettar/iris.git",
+    "directory": "sdk/js"
+  },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
