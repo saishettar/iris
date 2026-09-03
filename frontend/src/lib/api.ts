@@ -373,8 +373,8 @@ export function listWidgetMetrics(): Promise<WidgetMetricCatalog> {
   return apiFetch<WidgetMetricCatalog>("/dashboard/metrics")
 }
 
-export function listDashboardWidgets(): Promise<DashboardWidget[]> {
-  return apiFetch<DashboardWidget[]>("/dashboard/widgets")
+export function listDashboardWidgets(days?: number): Promise<DashboardWidget[]> {
+  return apiFetch<DashboardWidget[]>(`/dashboard/widgets${days ? `?days=${days}` : ""}`)
 }
 
 export function createDashboardWidget(title: string, metric: string): Promise<DashboardWidget> {

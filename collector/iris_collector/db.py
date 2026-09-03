@@ -925,38 +925,77 @@ def reorder_dashboard_widgets(ordered_ids: list[str]) -> None:
                 cur.execute("UPDATE dashboard_widgets SET position = %s WHERE id = %s", (i, widget_id))
 
 
-def get_widget_data(metric: str) -> dict:
+def get_widget_data(metric: str, days: int | None = None) -> dict:
+    """`days` is the dashboard's date-range filter (Traces/Home use the same
+    control). Applied everywhere the underlying data has a real time
+    dimension (traces, spans); metrics with no natural date axis --
+    agents_total (distinct agents ever seen), model_usage, agent_traces, and
+    eval_pass_rate (point-in-time/latest-run snapshots) -- are unaffected by
+    it, the same way not every Langfuse widget type honors every filter."""
     if metric not in WIDGET_METRICS:
         raise ValueError(f"unknown widget metric: {metric}")
 
     if metric == "traces_total":
         with _connection() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT count(*) FROM traces")
+                if days is None:
+                    cur.execute("SELECT count(*) FROM traces")
+                else:
+                    cur.execute(
+                        "SELECT count(*) FROM traces WHERE first_seen_at >= now() - (%s || ' days')::interval",
+                        (days,),
+                    )
                 return {"kind": "stat", "value": cur.fetchone()[0]}
 
     if metric == "agents_total":
         return {"kind": "stat", "value": len(get_agent_summary())}
 
     if metric == "error_rate":
-        agents = get_agent_summary()
-        total = sum(a["trace_count"] for a in agents)
-        errors = sum(a["error_count"] for a in agents)
-        return {"kind": "stat", "value": round((errors / total) * 100, 1) if total else 0.0}
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        count(*) AS total,
+                        count(*) FILTER (
+                            WHERE EXISTS (
+                                SELECT 1 FROM spans s
+                                WHERE s.trace_id = t.trace_id AND s.status_code = 'STATUS_CODE_ERROR'
+                            )
+                        ) AS errors
+                    FROM traces t
+                    WHERE %s::int IS NULL OR t.first_seen_at >= now() - (%s || ' days')::interval
+                    """,
+                    (days, days),
+                )
+                total, errors = cur.fetchone()
+                return {"kind": "stat", "value": round((errors / total) * 100, 1) if total else 0.0}
 
     if metric == "p50_latency":
-        summary = get_metrics_summary()
-        return {"kind": "stat", "value": summary["latency_percentiles"]["p50"]}
+        with _connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT percentile_cont(0.5) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (end_time - start_time)) * 1000
+                    )
+                    FROM spans
+                    WHERE name = 'chat' AND end_time IS NOT NULL
+                        AND (%s::int IS NULL OR start_time >= now() - (%s || ' days')::interval)
+                    """,
+                    (days, days),
+                )
+                return {"kind": "stat", "value": cur.fetchone()[0]}
 
     if metric == "trace_volume_by_day":
-        summary = get_metrics_summary()
+        summary = get_metrics_summary(days=days if days is not None else 36500)
         return {
             "kind": "chart",
             "rows": [{"label": r["day"].strftime("%b %d"), "value": r["count"]} for r in summary["trace_volume"]],
         }
 
     if metric == "latency_by_day":
-        summary = get_metrics_summary()
+        summary = get_metrics_summary(days=days if days is not None else 36500)
         return {
             "kind": "chart",
             "rows": [{"label": r["day"].strftime("%b %d"), "value": r["p50"]} for r in summary["latency_by_day"]],

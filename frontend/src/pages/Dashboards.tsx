@@ -12,8 +12,21 @@ import {
   type WidgetMetricCatalog,
 } from "@/lib/api"
 
+const TIME_RANGES = [
+  { label: "Past 7 days", days: 7 },
+  { label: "Past 14 days", days: 14 },
+  { label: "Past 30 days", days: 30 },
+  { label: "All time", days: null },
+] as const
+
 // Langfuse's "My Custom Dashboard" (Add Widget, resizable/reorderable
-// cards): fully functional per the shape brief, not a mock shell. There is
+// cards, plus a date-range/filter toolbar): fully functional per the shape
+// brief, not a mock shell. The date-range control is real -- it changes
+// dashboard_widgets' underlying SQL window (db.py's get_widget_data) --
+// but only for metrics with a real time dimension (traces, spans);
+// agents_total, model_usage, agent_traces, and eval_pass_rate are
+// point-in-time/latest-run snapshots with no date axis to filter, the same
+// way not every Langfuse widget type honors every filter either. There is
 // no free-form query builder here -- a widget picks from WIDGET_METRICS, a
 // fixed catalog of real aggregate queries the collector already runs
 // (db.py's get_widget_data), server-persisted in dashboard_widgets. Iris is
@@ -156,17 +169,24 @@ export function Dashboards() {
   const [adding, setAdding] = useState(false)
   const [dragId, setDragId] = useState<string | null>(null)
 
-  function refresh() {
-    return listDashboardWidgets()
+  const [rangeDays, setRangeDays] = useState<number | null>(7)
+
+  function refresh(days = rangeDays) {
+    return listDashboardWidgets(days ?? undefined)
       .then(setWidgets)
       .catch((err: Error) => setError(err.message))
   }
 
   useEffect(() => {
-    Promise.all([listWidgetMetrics().then(setCatalog), refresh()])
+    Promise.all([listWidgetMetrics().then(setCatalog), refresh(rangeDays)])
       .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!loading) refresh(rangeDays)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeDays])
 
   function addWidget(title: string, metric: string) {
     createDashboardWidget(title, metric)
@@ -202,14 +222,27 @@ export function Dashboards() {
             Pick real metrics from the collector and arrange them into one dashboard.
           </p>
         </div>
-        {!adding && (
-          <button
-            onClick={() => setAdding(true)}
-            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        <div className="flex shrink-0 items-center gap-2">
+          <select
+            value={rangeDays ?? ""}
+            onChange={(e) => setRangeDays(e.target.value ? Number(e.target.value) : null)}
+            className="h-9 rounded-full border border-input bg-muted/40 px-4 text-sm outline-none focus:ring-2 focus:ring-ring"
           >
-            <Plus className="size-4" /> Add Widget
-          </button>
-        )}
+            {TIME_RANGES.map((r) => (
+              <option key={r.label} value={r.days ?? ""}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+          {!adding && (
+            <button
+              onClick={() => setAdding(true)}
+              className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              <Plus className="size-4" /> Add Widget
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <p className="text-sm text-muted-foreground">Loading...</p>}

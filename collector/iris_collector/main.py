@@ -277,13 +277,14 @@ class DashboardWidgetIn(BaseModel):
 
 
 @app.get("/dashboard/widgets")
-def list_dashboard_widgets():
+def list_dashboard_widgets(days: int | None = None):
     """Each widget's live value is computed and attached inline -- a small,
     fixed number of widgets on one self-hosted dashboard, so this is one
-    request rather than a data fetch per widget."""
+    request rather than a data fetch per widget. `days` is the dashboard's
+    date-range filter; see db.get_widget_data for which metrics honor it."""
     widgets = db.list_dashboard_widgets()
     for widget in widgets:
-        widget["data"] = db.get_widget_data(widget["metric"])
+        widget["data"] = db.get_widget_data(widget["metric"], days=days)
     return widgets
 
 
