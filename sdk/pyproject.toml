@@ -8,6 +8,9 @@ dependencies = [
     "opentelemetry-exporter-otlp>=1.27",
 ]
 
+[tool.setuptools.packages.find]
+include = ["iris_otel*"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

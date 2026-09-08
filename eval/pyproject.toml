@@ -11,6 +11,9 @@ dependencies = [
 [project.scripts]
 iris-eval = "iris_eval.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["iris_eval*"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
